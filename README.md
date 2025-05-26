@@ -63,6 +63,7 @@ To use reelnn you have to deploy [reelnn-backend](https://github.com/rafsanbasun
 * Create an account or Login in [Vercel](https://vercel.com). Connect your github account and import your forked repository.
 * Add the following environment varriables:
 - Mandatory variables:
+  
 `BACKEND_URL` = The url of your backend without the `/` at the end. Ex. `https://- backend-abcd123.herokuapp.com`
 
 `SITE_SECRET` = Use the same SITE_SECRET you used to deploy backend.
