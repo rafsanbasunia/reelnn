@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+:root {
+  --background: #151111;
+  --foreground: #ffffff;
+  --font-family: var(--font-montserrat), sans-serif;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-mont: var(--font-montserrat);
+  --font-mono: monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --font-family: var(--font-montserrat), sans-serif;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-montserrat), sans-serif;
+}
+
+:root {
+  --primary: oklch(70% 0.333 46.59);
+}
+
+@layer utilities {
+  .text-outline {
+    -webkit-text-stroke: 2px;
+    -webkit-text-fill-color: oklch(0.188409 0.00829 17.911578);
+    color: var(--primary, oklch(69.7764% 0.135385 168.327128deg));
+  }
+}
+
+.letter-shadow-r {
+  -webkit-mask-image: linear-gradient(90deg, oklch(0 0 0deg) 36%, transparent);
+  mask-image: linear-gradient(90deg, oklch(0 0 0deg) 36%, transparent);
+}
+
+@keyframes pulse-opacity {
+  0% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0.2;
+  }
+}
+
+@layer utilities {
+  .animate-pulse-opacity {
+    animation: pulse-opacity 1.5s infinite ease-in-out;
+  }
+}
+
+.font-times {
+  font-family: "Times New Roman", Times, serif;
+}
+
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(75, 85, 99, 0.1);
+    border-radius: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #FB2C36;
+    border-radius: 6px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(107, 114, 128, 0.7);
+  }
