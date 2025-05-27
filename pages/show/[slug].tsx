@@ -272,7 +272,7 @@ const Slug = () => {
           priority
           sizes="100vw"
         />
-        <div className="absolute inset-0 bg-black/80"></div>
+        <div className="absolute inset-0 bg-black/90"></div>
       </div>
 
       {/* Page content */}

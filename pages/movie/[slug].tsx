@@ -251,7 +251,7 @@ const Slug = () => {
           quality={100}
           priority
         />
-        <div className="absolute inset-0 bg-black/80"></div>
+        <div className="absolute inset-0 bg-black/90"></div>
       </div>
 
       {/* Page content */}
