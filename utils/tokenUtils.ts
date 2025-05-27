@@ -12,7 +12,7 @@ export interface StreamParams {
   [key: string]: unknown;  // Add index signature for JWTPayload compatibility
 }
 
-// Explicitly define the input type to ensure required properties
+
 type StreamParamsInput = {
   id: string;
   mediaType: string;
@@ -31,11 +31,11 @@ export async function generateStreamToken(params: StreamParamsInput): Promise<st
     expiry: now + 21601 // 6 hours
   };
 
-  // Create a JWT that's compatible with PyJWT
+
   const secret = new TextEncoder().encode(SITE_SECRET);
   
   return await new jose.SignJWT(tokenData as jose.JWTPayload)
-    .setProtectedHeader({ alg: 'HS256' }) // PyJWT default algorithm
+    .setProtectedHeader({ alg: 'HS256' }) 
     .setIssuedAt()
     .setExpirationTime(tokenData.expiry)
     .sign(secret);

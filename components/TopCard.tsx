@@ -41,7 +41,7 @@ interface MovieDetailsProps {
     video_codec: string;
     file_type: string;
   }[];
-  streamUrl?: string; 
+  streamUrl?: string;
   contentId: number;
 }
 
@@ -72,8 +72,21 @@ const TrailerModal: React.FC<TrailerModalProps> = ({
   const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}` : "";
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
-      <div className="relative w-full max-w-4xl aspect-video bg-black rounded-lg">
+    <motion.div
+      className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        className="relative w-full max-w-4xl aspect-video bg-black rounded-lg"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        transition={{ type: "spring", damping: 15 }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           onClick={onClose}
           className="absolute -top-10 right-0 text-white p-2 hover:text-gray-300"
@@ -94,13 +107,13 @@ const TrailerModal: React.FC<TrailerModalProps> = ({
             Invalid YouTube URL
           </div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
 const TopCard: React.FC<MovieDetailsProps> = ({
-  contentId, 
+  contentId,
   title,
   trailer,
   year,
@@ -120,7 +133,7 @@ const TopCard: React.FC<MovieDetailsProps> = ({
   const [trailerOpen, setTrailerOpen] = React.useState(false);
   const [showQualityOptions, setShowQualityOptions] = React.useState(false);
   const [selectedQuality, setSelectedQuality] = React.useState(0);
-  const [showDownload, setShowDownload] = React.useState(false); 
+  const [showDownload, setShowDownload] = React.useState(false);
 
   const handlePlayClick = () => {
     if (onPlayClick) {
@@ -137,18 +150,19 @@ const TopCard: React.FC<MovieDetailsProps> = ({
   };
 
   const getQualityInfo = (
-    qualityArray: MovieDetailsProps['quality'],
+    qualityArray: MovieDetailsProps["quality"],
     selectedIndex: number
   ) => {
-    const selected = qualityArray && qualityArray.length > 0 
-      ? qualityArray[selectedIndex] 
-      : null;
-      
+    const selected =
+      qualityArray && qualityArray.length > 0
+        ? qualityArray[selectedIndex]
+        : null;
+
     return {
       quality: selected?.type || "N/A",
       size: selected?.size || "N/A",
       audio: selected?.audio || "English AAC 5.1 (Default)",
-      subtitle: selected?.subtitle || "English (Default SUBRIP)"
+      subtitle: selected?.subtitle || "English (Default SUBRIP)",
     };
   };
 
@@ -156,16 +170,15 @@ const TopCard: React.FC<MovieDetailsProps> = ({
 
   return (
     <div className="font-mont flex flex-col w-full text-white min-h-[500px] relative">
-      
       <AnimatePresence>
         {showDownload && (
           <Download
             isOpen={showDownload}
             onClose={() => setShowDownload(false)}
-            contentId={contentId} 
+            contentId={contentId}
             title={title}
             selectedQuality={quality[selectedQuality]}
-            qualityIndex={selectedQuality} 
+            qualityIndex={selectedQuality}
           />
         )}
       </AnimatePresence>
@@ -180,14 +193,13 @@ const TopCard: React.FC<MovieDetailsProps> = ({
             layout="fill"
             objectFit="cover"
             className="w-full h-full"
-            priority={true} 
-            sizes="(max-width: 768px) 100vw, 300px" 
+            priority={true}
+            sizes="(max-width: 768px) 100vw, 300px"
           />
         </div>
 
         {/* Movie Details */}
         <div className="md:ml-8 flex-grow">
-          
           {logo ? (
             <div className="font-light uppercase mb-2 hidden sm:block pointer-events-none">
               <Image
@@ -200,7 +212,9 @@ const TopCard: React.FC<MovieDetailsProps> = ({
               />
             </div>
           ) : (
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2 hidden sm:block">{title}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2 hidden sm:block">
+              {title}
+            </h1>
           )}
 
           {/* Movie Title */}
@@ -208,7 +222,7 @@ const TopCard: React.FC<MovieDetailsProps> = ({
 
           {/* Basic Movie Info */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4 sm:mb-6 text-sm sm:text-base">
-            <MdOutlineCalendarMonth/>
+            <MdOutlineCalendarMonth />
             <span className="text-gray-300">{year}</span>
             {vote && (
               <span className="flex items-center">

@@ -7,12 +7,25 @@ import Footer from "@/components/Footer";
 import { RxExit } from "react-icons/rx";
 import Link from "next/link";
 import SectionHeading from "@/components/SectionHeading";
+import Head from "next/head";
+import { NEXT_PUBLIC_SITE_NAME } from "@/config";
 
 export default function Home() {
   const { movies, shows, trending, isLoading, error } = useContent();
 
   return (
     <>
+    <Head>
+        <title>
+          {NEXT_PUBLIC_SITE_NAME}
+        </title>
+        <meta
+          name="description"
+          content={
+            `Watch Movies and TV Shows on ${NEXT_PUBLIC_SITE_NAME}`
+          }
+        />
+      </Head>
       <HeroSlideshow />
       <main className="font-mont lg:px-32 md:px-16 px-0 bg-background">
         <div className="py-6 md:py-8">
