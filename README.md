@@ -1,7 +1,7 @@
 
 # 🎬 reelnn - A Streaming Web App Based on TG
 
-**reelnn** (short form of **reel-inn**) is a full-stack entertainment web application that allows users to stream and access videos directly from Telegram. Built with Next.js for the frontend and Python for the backend, it utilizes Telegram as a file storage system—eliminating the need for traditional hosting infrastructure for video files.
+**reelnn** (**reel-inn**) is a full-stack entertainment web application that allows users to stream and access videos directly from Telegram. Built with Next.js for the frontend and Python for the backend, it utilizes Telegram as a file storage system—eliminating the need for traditional hosting infrastructure for video files.
 
 
 IMPORTANT - This project is in active development. Bugs and glitches are expected. Join [reelnnUpdates](https://t.me/reelnnUpdates) for future updates.
