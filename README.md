@@ -56,42 +56,9 @@ IMPORTANT - This project is in active development. Bugs and glitches are expecte
 * **Access Control** : Add checks (if needed) to allow only specific users or Telegram-verified accounts. `#Todo`
 ## 🛠️ Installation
 
-### 1. Prerequisites
+### Prerequisites
 
-To use reelnn you have to deploy [reelnn-backend](https://github.com/rafsanbasunia/reelnn-backend/) first. After you've successfully deployed your backend and you've the `BACKEND_URL`, then goto step 2.
-
-### 2. Deployment
-#### 2.1 🌐 Deploy Using Vercel
-* Fork this repository.
-* Create an account or Login in [Vercel](https://vercel.com). Connect your github account and import your forked repository.
-* Add the following environment varriables:
-- Mandatory variables:
-  
-`BACKEND_URL` = The url of your backend without the `/` at the end. Ex. `https://- backend-abcd123.herokuapp.com`
-
-`SITE_SECRET` = Use the same SITE_SECRET you used to deploy backend.
- 
-`NEXT_PUBLIC_TELEGRAM_BOT_NAME` = Your Telegram Bot username which will forward the files to the users
-
-`NEXT_PUBLIC_SITE_NAME` = Your Site Name
-
-
-- Optional variables:
-
-`NEXT_PUBLIC_FOOTER_DESC` = Site Footer Description
-
-`NEXT_PUBLIC_FOOTER_CONTACT` = Contact Info
-
-`SHORTENER_API_KEY` = Api key if you want to use your shortner
-
-`SHORTENER_API_URL` = Api url if you want to use your shortner
-
-- After adding all the variables, click deploy.
-
-
-#### 2.2 Local Deployment Guide
-coming soon ...
-
+To use reelnn you have to deploy [reelnn-backend](https://github.com/rafsanbasunia/reelnn-backend/) first. Follow the detailed instructions in [Wiki](https://github.com/rafsanbasunia/reelnn/wiki).
 
 ## 🤝 Contributing
 
