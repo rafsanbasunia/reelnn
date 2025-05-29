@@ -7,6 +7,9 @@
 </div>
 
 ---
+<p align="center">
+  <img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExcWFudzZ3aWk5ejZ1cXBoaXo2ZW9ldXh0emd4Z2pkeTFnaHdzaTlnaCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/CClicUlLWi6pSJ7pu0/giphy.gif" />
+</p>
 
 # 🎬 reelnn - A Streaming Web App Based on TG
 
