@@ -9,7 +9,10 @@ import Link from "next/link";
 const HeroSlideshow = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const { movies, isLoading, error } = useHeroSlider();
+  
   useEffect(() => {
+    if (movies.length === 0) return;
+    
     const interval = setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % movies.length);
     }, 8000);
@@ -66,6 +69,24 @@ const HeroSlideshow = () => {
     );
   }
 
+  // Add this safety check
+  if (!currentMovie || movies.length === 0) {
+    return (
+      <div className="relative w-full h-[85vh] sm:h-[70vh] md:h-[80vh] lg:h-[90vh] bg-gray-900">
+        <Navbar />
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center text-gray-400">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gray-700 rounded-md flex items-center justify-center">
+              <span className="text-2xl">🖼️</span>
+            </div>
+            <p className="text-lg font-medium">No Backdrop</p>
+            <p className="text-sm">No hero content available</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className=" font-mont relative w-full h-[85vh] sm:h-[70vh] md:h-[80vh] lg:h-[90vh] overflow-hidden">
       <Navbar />
@@ -86,14 +107,25 @@ const HeroSlideshow = () => {
           transition={{ duration: 1 }}
         >
           <div className="absolute z-[2] w-full h-full bg-background/30 bg-gradient-to-b from-background/10 to-background" />
-          <Image
-            src={`https://image.tmdb.org/t/p/original${currentMovie.backdrop_path}`}
-            alt={currentMovie.title}
-            fill
-            style={{ objectFit: "cover", objectPosition: "center 20%" }}
-            quality={100}
-            priority
-          />
+          {currentMovie.backdrop_path ? (
+            <Image
+              src={`https://image.tmdb.org/t/p/original${currentMovie.backdrop_path}`}
+              alt={currentMovie.title || 'Movie backdrop'}
+              fill
+              style={{ objectFit: "cover", objectPosition: "center 20%" }}
+              quality={100}
+              priority
+            />
+          ) : (
+            <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+              <div className="text-center text-gray-400">
+                <div className="w-24 h-24 mx-auto mb-4 bg-gray-700 rounded-md flex items-center justify-center">
+                  <span className="text-4xl">🖼️</span>
+                </div>
+                <p className="text-xl font-medium">No Backdrop</p>
+              </div>
+            </div>
+          )}
         </motion.div>
       </AnimatePresence>
 

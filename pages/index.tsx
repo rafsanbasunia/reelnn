@@ -12,18 +12,17 @@ import { NEXT_PUBLIC_SITE_NAME } from "@/config";
 
 export default function Home() {
   const { movies, shows, trending, isLoading, error } = useContent();
+  const safeTrending = trending?.filter((item) => item) || [];
+  const safeMovies = movies?.filter((item) => item) || [];
+  const safeShows = shows?.filter((item) => item) || [];
 
   return (
     <>
-    <Head>
-        <title>
-          {NEXT_PUBLIC_SITE_NAME}
-        </title>
+      <Head>
+        <title>{NEXT_PUBLIC_SITE_NAME}</title>
         <meta
           name="description"
-          content={
-            `Watch Movies and TV Shows on ${NEXT_PUBLIC_SITE_NAME}`
-          }
+          content={`Watch Movies and TV Shows on ${NEXT_PUBLIC_SITE_NAME}`}
         />
       </Head>
       <HeroSlideshow />
@@ -52,12 +51,18 @@ export default function Home() {
                 <div className="flex items-center justify-between mt-8 mb-6">
                   <SectionHeading label="WHAT'S" title="TRENDING" />
                 </div>
-                {trending.length > 0 ? (
-                  <CardGrid contents={trending} />
+                {safeTrending.length > 0 ? (
+                  <CardGrid contents={safeTrending} />
                 ) : (
-                  <p className="text-white mt-4 p-4 bg-gray-800/30 rounded-md text-center">
-                    No trending content available.
-                  </p>
+                  <div className="flex items-center justify-center h-48 bg-gray-800/30 rounded-md">
+                    <div className="text-center text-gray-400">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-gray-700 rounded-md flex items-center justify-center">
+                        <span className="text-2xl">🖼️</span>
+                      </div>
+
+                      <p className="text-sm">No trending content available</p>
+                    </div>
+                  </div>
                 )}
               </section>
 
@@ -72,12 +77,18 @@ export default function Home() {
                     </button>
                   </Link>
                 </div>
-                {movies.length > 0 ? (
-                  <CardGrid contents={movies} displayStyle="grid" />
+                {safeMovies.length > 0 ? (
+                  <CardGrid contents={safeMovies} displayStyle="grid" />
                 ) : (
-                  <p className="text-white mt-4 p-4 bg-gray-800/30 rounded-md text-center">
-                    No movies available.
-                  </p>
+                  <div className="flex items-center justify-center h-48 bg-gray-800/30 rounded-md">
+                    <div className="text-center text-gray-400">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-gray-700 rounded-md flex items-center justify-center">
+                        <span className="text-2xl">🖼️</span>
+                      </div>
+
+                      <p className="text-sm">No movies available</p>
+                    </div>
+                  </div>
                 )}
               </section>
 
@@ -92,12 +103,18 @@ export default function Home() {
                     </button>
                   </Link>
                 </div>
-                {shows.length > 0 ? (
-                  <CardGrid contents={shows} displayStyle="grid" />
+                {safeShows.length > 0 ? (
+                  <CardGrid contents={safeShows} displayStyle="grid" />
                 ) : (
-                  <p className="text-white mt-4 p-4 bg-gray-800/30 rounded-md text-center">
-                    No shows available.
-                  </p>
+                  <div className="flex items-center justify-center h-48 bg-gray-800/30 rounded-md">
+                    <div className="text-center text-gray-400">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-gray-700 rounded-md flex items-center justify-center">
+                        <span className="text-2xl">🖼️</span>
+                      </div>
+
+                      <p className="text-sm">No shows available</p>
+                    </div>
+                  </div>
                 )}
               </section>
             </>
