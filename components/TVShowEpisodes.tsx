@@ -351,10 +351,12 @@ const EpisodeList: React.FC<EpisodeListProps & { showId: string; currentSeason: 
   showId
 }) => {
   const filteredEpisodes = useMemo(() => {
-    return episodes.filter(episode => 
-      episode.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      episode.overview?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    return episodes
+      .filter(episode => 
+        episode.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        episode.overview?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .sort((a, b) => a.episode_number - b.episode_number);
   }, [episodes, searchQuery]);
 
   if (!episodes || episodes.length === 0) {
