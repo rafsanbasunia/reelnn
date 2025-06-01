@@ -57,13 +57,13 @@ IMPORTANT - This project is in active development. Bugs and glitches are expecte
 
 ## 🧠 How It Works
 
-* **Storage**: You upload your media files to a private Telegram channel or group.
+* **Video Upload**: You upload your media files (mp4 or mkv or any video files ) to a private Telegram channel or group.
 
-* **Indexing**: The backend fetches file metadata from Telegram and stores it in your DB or in-memory.
+* **Indexing**: The backend fetches metadata from the media file and stores it in Database.
 
-* **Frontend Requests** : Users search or browse movies, triggering API requests to the Python backend.
+* **Instant Upload** : It instantly appears in your website with beautifull posters and logos from TMDB.
 
-* **Streaming** : The backend generates a direct streaming link via Telegram’s getFile endpoint and streams it to the frontend.
+* **Streaming** : Users can stream and download the media within few seconds. 
 
 * **Access Control** : Add checks (if needed) to allow only specific users or Telegram-verified accounts. `#Todo`
 ## 🛠️ Installation
