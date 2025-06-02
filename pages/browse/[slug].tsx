@@ -6,22 +6,20 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { NEXT_PUBLIC_SITE_NAME } from "@/config";
 
-
-
 interface SortOptionProps {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
 }
 
-
 interface PaginationData {
-  current_page: number;
+  page: number;
   total_pages: number;
   total_items: number;
   items_per_page: number;
+  has_next: boolean;
+  has_prev: boolean;
 }
-
 const VALID_MEDIA_TYPES = ["movie", "show"];
 
 const CardSkeleton = memo(() => (
@@ -79,8 +77,8 @@ const SortOption = memo<SortOptionProps>(({ active, onClick, children }) => (
   <button
     onClick={onClick}
     className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-      active 
-        ? "bg-red-600 text-white" 
+      active
+        ? "bg-red-600 text-white"
         : "bg-gray-800 text-gray-300 hover:bg-gray-700"
     }`}
   >
@@ -103,10 +101,12 @@ export default function BrowsePage() {
 
   const [contents, setContents] = useState<content[]>([]);
   const [pagination, setPagination] = useState<PaginationData>({
-    current_page: 1,
+    page: 1,
     total_pages: 0,
     total_items: 0,
     items_per_page: 20,
+    has_next: false,
+    has_prev: false,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -141,12 +141,17 @@ export default function BrowsePage() {
 
         const data = await res.json();
         setContents(data.items);
+        console.log("Fetched contents:", data.pagination);
         setPagination(data.pagination);
 
         if (pageNum !== pageNumber || sortBy !== sortOption) {
-          router.push(`/browse/${mediaType}?page=${pageNum}&sort_by=${sortBy}`, undefined, {
-            shallow: true,
-          });
+          router.push(
+            `/browse/${mediaType}?page=${pageNum}&sort_by=${sortBy}`,
+            undefined,
+            {
+              shallow: true,
+            }
+          );
         }
       } catch (error) {
         console.error("Error fetching page data:", error);
@@ -164,10 +169,11 @@ export default function BrowsePage() {
 
   const handleSortChange = (newSort: string) => {
     if (newSort !== sortOption && !loading) {
-      fetchPage(1, newSort); // Reset to page 1 when sort changes
+      router.push(`/browse/${mediaType}?page=1&sort_by=${newSort}`, undefined, {
+        shallow: true,
+      });
     }
   };
-
 
   useEffect(() => {
     if (!slug) return;
@@ -180,30 +186,33 @@ export default function BrowsePage() {
     fetchPage(pageNumber, sortOption);
   }, [slug, pageNumber, sortOption, router, isValidMediaType, fetchPage]);
 
-  
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= pagination.total_pages && !loading) {
-      fetchPage(newPage);
+      router.push(
+        `/browse/${mediaType}?page=${newPage}&sort_by=${sortOption}`,
+        undefined,
+        { shallow: true }
+      );
     }
   };
 
   const pageNumbers = useMemo(() => {
     if (pagination.total_pages <= 1) return [];
 
-    const { current_page, total_pages } = pagination;
+    const { page, total_pages } = pagination;
     const numbers: (number | string)[] = [1];
 
-    if (current_page > 3) numbers.push("...");
+    if (page > 3) numbers.push("...");
 
-    if (current_page > 2) numbers.push(current_page - 1);
+    if (page > 2) numbers.push(page - 1);
 
-    if (current_page !== 1 && current_page !== total_pages) {
-      numbers.push(current_page);
+    if (page !== 1 && page !== total_pages) {
+      numbers.push(page);
     }
 
-    if (current_page < total_pages - 1) numbers.push(current_page + 1);
+    if (page < total_pages - 1) numbers.push(page + 1);
 
-    if (current_page < total_pages - 2) numbers.push("...");
+    if (page < total_pages - 2) numbers.push("...");
 
     if (total_pages > 1) numbers.push(total_pages);
 
@@ -244,22 +253,22 @@ export default function BrowsePage() {
           <h1 className="text-2xl sm:text-3xl font-bold">
             Browse {mediaType === "movie" ? "Movies" : "TV Shows"}
           </h1>
-          
+
           <div className="flex flex-wrap gap-2 mt-3 sm:mt-0">
-            <SortOption 
-              active={sortOption === "new"} 
+            <SortOption
+              active={sortOption === "new"}
               onClick={() => handleSortChange("new")}
             >
               Recently Added
             </SortOption>
-            <SortOption 
-              active={sortOption === "most"} 
+            <SortOption
+              active={sortOption === "most"}
               onClick={() => handleSortChange("most")}
             >
               Most Rated
             </SortOption>
-            <SortOption 
-              active={sortOption === "date"} 
+            <SortOption
+              active={sortOption === "date"}
               onClick={() => handleSortChange("date")}
             >
               Release Date
@@ -298,8 +307,8 @@ export default function BrowsePage() {
             className="flex flex-wrap justify-center items-center gap-2 mt-8 sm:mt-12 mb-10"
           >
             <PaginationButton
-              onClick={() => handlePageChange(pagination.current_page - 1)}
-              disabled={pagination.current_page === 1}
+              onClick={() => handlePageChange(pagination.page - 1)}
+              disabled={pagination.page === 1}
             >
               Previous
             </PaginationButton>
@@ -310,7 +319,7 @@ export default function BrowsePage() {
                   <PaginationButton
                     key={index}
                     onClick={() => handlePageChange(page)}
-                    active={page === pagination.current_page}
+                    active={page === pagination.page}
                   >
                     {page}
                   </PaginationButton>
@@ -327,8 +336,8 @@ export default function BrowsePage() {
             </div>
 
             <PaginationButton
-              onClick={() => handlePageChange(pagination.current_page + 1)}
-              disabled={pagination.current_page === pagination.total_pages}
+              onClick={() => handlePageChange(pagination.page + 1)}
+              disabled={pagination.page === pagination.total_pages}
             >
               Next
             </PaginationButton>
