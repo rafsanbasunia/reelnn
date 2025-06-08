@@ -250,6 +250,7 @@ const Slug = () => {
           objectFit="cover"
           quality={100}
           priority
+          unoptimized
         />
         <div className="absolute inset-0 bg-black/90"></div>
       </div>

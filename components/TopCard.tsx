@@ -195,6 +195,7 @@ const TopCard: React.FC<MovieDetailsProps> = ({
             className="w-full h-full"
             priority={true}
             sizes="(max-width: 768px) 100vw, 300px"
+            unoptimized
           />
         </div>
 
@@ -209,6 +210,7 @@ const TopCard: React.FC<MovieDetailsProps> = ({
                 height={120}
                 layout="intrinsic"
                 className="w-auto h-auto max-h-[80px] md:max-h-[120px]"
+                unoptimized
               />
             </div>
           ) : (

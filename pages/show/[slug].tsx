@@ -271,6 +271,7 @@ const Slug = () => {
           quality={85}
           priority
           sizes="100vw"
+          unoptimized
         />
         <div className="absolute inset-0 bg-black/90"></div>
       </div>

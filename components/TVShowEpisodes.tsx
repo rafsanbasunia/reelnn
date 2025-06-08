@@ -224,6 +224,7 @@ const EpisodeItem: React.FC<{ episode: Episode; index: number; showId: string; s
               className="rounded"
               priority={index < 3}
               loading={index >= 3 ? "lazy" : undefined}
+              unoptimized
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-800">

@@ -151,6 +151,7 @@ const CastCrew: React.FC<CastCrewProps> = ({ castMembers }) => {
                     sizes="(max-width: 768px) 144px, 144px"
                     className="object-cover object-top pointer-events-none"
                     loading="lazy"
+                    unoptimized
                   />
                 </motion.div>
               ) : (

@@ -113,6 +113,7 @@ const Search = forwardRef<HTMLDivElement, SearchProps>(
                       fill
                       className="object-cover"
                       sizes="(max-width: 640px) 48px, 64px"
+                      unoptimized
                     />
                   </div>
                   <div className="ml-2 sm:ml-3 flex-grow">

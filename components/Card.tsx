@@ -52,6 +52,7 @@ export const Card: React.FC<contentCardProps> = ({ content }) => {
             sizes="(max-width: 640px) 150px, (max-width: 768px) 180px, 200px"
             className="rounded-lg object-cover"
             loading="lazy"
+            unoptimized
           />
         </motion.div>
 
