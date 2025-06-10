@@ -113,6 +113,7 @@ export default async function handler(req: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
+    console.error('Authentication error:', error);
     return NextResponse.json(
       {
         error: "Internal server error",
@@ -169,6 +170,7 @@ async function verifyTelegramAuth(
 
     return calculatedHash === hash;
   } catch (error) {
+    console.error('Telegram verification error:', error);
     return false;
   }
 }

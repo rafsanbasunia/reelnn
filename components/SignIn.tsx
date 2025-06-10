@@ -9,6 +9,24 @@ import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import { NEXT_PUBLIC_TELEGRAM_BOT_NAME } from "@/config";
 
+// Add this interface
+interface TelegramAuthData {
+  id: string;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+  auth_date: string;
+  hash: string;
+}
+
+// Add this to extend the Window interface
+declare global {
+  interface Window {
+    onTelegramAuth?: (user: TelegramAuthData) => void;
+  }
+}
+
 interface SignInProps {
   backgroundImageUrl?: string;
 }
@@ -25,7 +43,7 @@ const SignIn: React.FC<SignInProps> = ({ backgroundImageUrl }) => {
     "disabled" | "notFound" | "general"
   >("general");
 
-  const verifyTelegramAuthViaAPI = async (authData: any): Promise<boolean> => {
+  const verifyTelegramAuthViaAPI = async (authData: TelegramAuthData): Promise<boolean> => {
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
@@ -76,7 +94,7 @@ const SignIn: React.FC<SignInProps> = ({ backgroundImageUrl }) => {
   };
 
   useEffect(() => {
-    const handleTelegramAuth = async (user: any) => {
+    const handleTelegramAuth = async (user: TelegramAuthData) => {
       console.log("Telegram user data:", user);
 
       const isVerified = await verifyTelegramAuthViaAPI(user);
@@ -86,10 +104,10 @@ const SignIn: React.FC<SignInProps> = ({ backgroundImageUrl }) => {
       }
     };
 
-    (window as any).onTelegramAuth = handleTelegramAuth;
+    window.onTelegramAuth = handleTelegramAuth;
 
     return () => {
-      delete (window as any).onTelegramAuth;
+      delete window.onTelegramAuth;
     };
   }, [login]);
 

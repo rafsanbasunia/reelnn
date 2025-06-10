@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
+
+type VideoJsPlayer = ReturnType<typeof videojs>;
 import {
   RiPlayLargeLine,
   RiPauseLargeFill,
@@ -65,7 +67,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   quality,
 }) => {
   const [playerState, setPlayerState] = useState({
-    isPlaying: true,
+    isPlaying: false,
     progress: 0,
     currentTime: 0,
     duration: 0,
@@ -76,416 +78,568 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     showControls: true,
     isLoading: true,
     bufferProgress: 0,
+    isSeeking: false,
+    brightness: 100,
+    hasError: false,
+    errorMessage: '',
   });
+
+  const [touchState, setTouchState] = useState({
+    adjustingVolume: false,
+    adjustingBrightness: false,
+    initialTouch: { x: 0, y: 0 },
+    initialValue: 0,
+    doubleTapTimeout: null as NodeJS.Timeout | null,
+    lastTap: 0,
+    showVolumeIndicator: false,
+    showBrightnessIndicator: false,
+    touchStartTime: 0,
+  });
+
+  const [aspectRatioMode, setAspectRatioMode] = useState<AspectRatioMode>("bestFit");
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [activeSettingsTab, setActiveSettingsTab] = useState<SettingTab>("Settings");
+  const [isMobile, setIsMobile] = useState(false);
+  const [mouseIdleTimer, setMouseIdleTimer] = useState<NodeJS.Timeout | null>(null);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const playerRef = useRef<VideoJsPlayer | null>(null);
+  const settingsMenuRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const updatePlayerState = useCallback((updates: Partial<typeof playerState>) => {
     setPlayerState((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  const [aspectRatioMode, setAspectRatioMode] =
-    useState<AspectRatioMode>("bestFit");
-  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
-  const [activeSettingsTab, setActiveSettingsTab] =
-    useState<SettingTab>("Settings");
-
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const playerRef = useRef<any>(null);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const settingsMenuRef = useRef<HTMLDivElement>(null);
-
-  // Initialize Video.js
-  useEffect(() => {
-    if (!videoRef.current) return;
-
-    // Video.js options
-    const videoJsOptions = {
-      autoplay: true,
-      controls: false, 
-      responsive: true,
-      fluid: true,
-      sources: [{
-        src: videoSource,
-        type: 'video/mp4', // Adjust based on your video format
-      }],
-      playbackRates: playbackSpeeds,
-    };
-
-    // Initialize Video.js player
-    const player = videojs(videoRef.current, videoJsOptions, function onPlayerReady() {
-      player.volume(playerState.volume);
-      player.playbackRate(playerState.playbackRate);
-    });
-
-    playerRef.current = player;
-
-    // Set up event listeners
-    player.on('play', () => updatePlayerState({ isPlaying: true, isLoading: false }));
-    player.on('pause', () => updatePlayerState({ isPlaying: false }));
-    player.on('timeupdate', () => {
-      const currentTime = player.currentTime();
-      const duration = player.duration();
-      
-      if (currentTime !== undefined && duration !== undefined && duration > 0) {
-        updatePlayerState({
-          currentTime: currentTime,
-          progress: (currentTime / duration) * 100,
-        });
-      }
-    });
-    player.on('loadedmetadata', () => {
-      const duration = player.duration();
-      updatePlayerState({
-        duration: duration !== undefined ? duration : 0,
-        isLoading: false,
-      });
-    });
-    player.on('waiting', () => updatePlayerState({ isLoading: true }));
-    player.on('canplay', () => updatePlayerState({ isLoading: false }));
-    player.on('progress', () => {
-      if (player.buffered().length > 0) {
-        const bufferedEnd = player.buffered().end(player.buffered().length - 1);
-        const duration = player.duration();
-        
-        if (duration !== undefined && duration > 0) {
-          updatePlayerState({
-            bufferProgress: (bufferedEnd / duration) * 100,
-          });
-        }
-      }
-    });
-
-    // Add subtitle track if provided
-    if (subtitles) {
-      player.addRemoteTextTrack({
-        kind: 'subtitles',
-        src: subtitles,
-        srclang: 'en',
-        label: 'English',
-        default: true
-      }, false);
-    }
-
-    // Clean up on unmount
-    return () => {
-      if (playerRef.current) {
-        playerRef.current.dispose();
-      }
-    };
-  }, [videoSource, subtitles]);
-
-  useEffect(() => {
-    const videoElement = videoRef.current;
-    if (!videoElement) return;
-
-    const handleBeforeUnload = () => {
-      const currentPos = videoElement.currentTime;
-      if (currentPos > 0) {
-        sessionStorage.setItem("videoPosition", currentPos.toString());
-      }
-    };
-
-    const resumePosition = sessionStorage.getItem("videoPosition");
-    if (resumePosition) {
-      videoElement.currentTime = parseFloat(resumePosition);
-    }
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  const updateTouchState = useCallback((updates: Partial<typeof touchState>) => {
+    setTouchState((prev) => ({ ...prev, ...updates }));
   }, []);
 
-useEffect(() => {
-  const videoElement = videoRef.current;
-  if (!videoElement) return;
-
-  const handleTimeUpdate = () => {
-    updatePlayerState({
-      currentTime: videoElement.currentTime,
-      progress: (videoElement.currentTime / videoElement.duration) * 100,
-    });
-  };
-
-  const handleLoadedMetadata = () => {
-    updatePlayerState({
-      duration: videoElement.duration,
-      volume: videoElement.volume,
-      playbackRate: videoElement.playbackRate,
-    });
-  };
-
-  videoElement.addEventListener("timeupdate", handleTimeUpdate);
-  videoElement.addEventListener("loadedmetadata", handleLoadedMetadata);
-
-  videoElement.volume = playerState.volume;
-  videoElement.playbackRate = playerState.playbackRate;
-
-  return () => {
-    videoElement.removeEventListener("timeupdate", handleTimeUpdate);
-    videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata);
-  };
-}, [playerState.volume, playerState.playbackRate, updatePlayerState]);
-
-
+  
   useEffect(() => {
-    const resetTimer = () => {
-      updatePlayerState({ showControls: true });
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-
-      controlsTimeoutRef.current = setTimeout(() => {
-        updatePlayerState({ showControls: false });
-      }, 3000);
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/.test(userAgent);
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isSmallScreen = window.innerWidth <= 768;
+      setIsMobile(isMobileDevice || (isTouchDevice && isSmallScreen));
     };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
-    const handleInteraction = () => {
-      resetTimer();
-    };
+  
+  useEffect(() => {
+    if (!videoRef.current || !videoSource) return;
 
-    resetTimer();
-
-    const player = playerRef.current;
-    if (player) {
-      // Use Video.js event handling instead of DOM events
-      player.on("mousemove", handleInteraction);
-      player.on("click", handleInteraction);
+    const videoElement = videoRef.current;
+    
+    
+    if (playerRef.current) {
+      playerRef.current.dispose();
+      playerRef.current = null;
     }
 
-    document.addEventListener("keydown", handleInteraction);
+    
+    updatePlayerState({ hasError: false, errorMessage: '' });
 
-    return () => {
-      if (player) {
-        // Properly clean up Video.js events
-        player.off("mousemove", handleInteraction);
-        player.off("click", handleInteraction);
-      }
-      document.removeEventListener("keydown", handleInteraction);
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    };
-  }, [updatePlayerState]);
-
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const settingsButton = document.getElementById("video-settings-button");
-      if (
-        settingsMenuRef.current &&
-        !settingsMenuRef.current.contains(event.target as Node) &&
-        settingsButton &&
-        !settingsButton.contains(event.target as Node)
-      ) {
-        setShowSettingsMenu(false);
-      }
-    };
-
-    if (showSettingsMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showSettingsMenu]);
-
-  useEffect(() => {
-  const videoElement = videoRef.current;
-  if (!videoElement) return;
-
-  const handleLoadingChange = () => {
-    updatePlayerState({ isLoading: videoElement.readyState < 3 });
-  };
-
-  const handleProgress = () => {
-    if (!videoElement.duration || !isFinite(videoElement.duration)) return;
-
-    const buffer = videoElement.buffered;
-    if (buffer.length > 0) {
-      const bufferedEnd = buffer.end(buffer.length - 1);
-      updatePlayerState({
-        bufferProgress: (bufferedEnd / videoElement.duration) * 100,
-      });
-    }
-  };
-  handleLoadingChange();
-
-  videoElement.addEventListener("waiting", () =>
-    updatePlayerState({ isLoading: true })
-  );
-  videoElement.addEventListener("playing", () =>
-    updatePlayerState({ isLoading: false })
-  );
-  videoElement.addEventListener("canplay", handleLoadingChange);
-  videoElement.addEventListener("canplaythrough", handleLoadingChange);
-  videoElement.addEventListener("progress", handleProgress);
-
-  videoElement.addEventListener("stalled", () =>
-    updatePlayerState({ isLoading: true })
-  );
-
-  videoElement.addEventListener("seeking", () =>
-    updatePlayerState({ isLoading: true })
-  );
-  videoElement.addEventListener("seeked", handleLoadingChange);
-
-  return () => {
-    videoElement.removeEventListener("waiting", () =>
-      updatePlayerState({ isLoading: true })
-    );
-    videoElement.removeEventListener("playing", () =>
-      updatePlayerState({ isLoading: false })
-    );
-    videoElement.removeEventListener("canplay", handleLoadingChange);
-    videoElement.removeEventListener("canplaythrough", handleLoadingChange);
-    videoElement.removeEventListener("progress", handleProgress);
-    videoElement.removeEventListener("stalled", () =>
-      updatePlayerState({ isLoading: true })
-    );
-    videoElement.removeEventListener("seeking", () =>
-      updatePlayerState({ isLoading: true })
-    );
-    videoElement.removeEventListener("seeked", handleLoadingChange);
-  };
-}, [updatePlayerState]);
-
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.muted = false;
-      videoRef.current.volume = playerState.volume;
-
-      videoRef.current.addEventListener("loadedmetadata", () => {
-        if (videoRef.current) {
-          videoRef.current.muted = false;
-          videoRef.current.volume = playerState.volume;
+    
+    setTimeout(() => {
+      
+      const getVideoType = (src: string) => {
+        const extension = src.split('.').pop()?.toLowerCase();
+        switch (extension) {
+          case 'mkv':
+            return 'video/x-matroska';
+          case 'mp4':
+            return 'video/mp4';
+          case 'webm':
+            return 'video/webm';
+          case 'ogg':
+          case 'ogv':
+            return 'video/ogg';
+          case 'avi':
+            return 'video/x-msvideo';
+          case 'mov':
+            return 'video/quicktime';
+          case 'flv':
+            return 'video/x-flv';
+          case 'wmv':
+            return 'video/x-ms-wmv';
+          default:
+            return 'video/mp4'; 
         }
-      });
-    }
-  }, [playerState.volume]);
+      };
 
-  // Player controls
-  const togglePlay = () => {
+      const videoJsOptions = {
+        autoplay: true,
+        controls: false,
+        responsive: true,
+        fluid: true, 
+        fill: false, 
+        sources: [{
+          src: videoSource,
+          type: getVideoType(videoSource),
+        }],
+        playbackRates: playbackSpeeds,
+        preload: 'auto',
+        html5: {
+          nativeVideoTracks: false,
+          nativeAudioTracks: false,
+          nativeTextTracks: false,
+        },
+        techOrder: ['html5'],
+        enableSourceOrder: true,
+      };
+
+      try {
+        
+        const player = videojs(videoElement, videoJsOptions);
+        playerRef.current = player;
+
+        
+        player.ready(() => {
+          console.log('Video.js player is ready');
+          
+          
+          player.volume(playerState.volume);
+          player.playbackRate(playerState.playbackRate);
+          
+          
+          const videoEl = player.el().querySelector('video');
+          if (videoEl) {
+            videoEl.style.width = '100%';
+            videoEl.style.height = '100%';
+            videoEl.style.objectFit = 'contain';
+          }
+          
+          
+          const playPromise = player.play();
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              console.log('Video started playing successfully');
+              updatePlayerState({ isPlaying: true, isLoading: false });
+            }).catch((error) => {
+              console.error('Error playing video:', error);
+              updatePlayerState({ isLoading: false });
+              
+              
+              const extension = videoSource.split('.').pop()?.toLowerCase();
+              let errorMessage = 'Unable to play this video.';
+              
+              if (extension === 'mkv') {
+                errorMessage = 'MKV files may not be supported by your browser. Try using MP4 or WebM format.';
+              } else if (['avi', 'wmv', 'flv'].includes(extension || '')) {
+                errorMessage = `${extension?.toUpperCase()} files are not supported by web browsers. Please use MP4, WebM, or other web-compatible formats.`;
+              }
+              
+              updatePlayerState({ 
+                hasError: true, 
+                errorMessage 
+              });
+            });
+          }
+        });
+
+        
+        player.on('loadstart', () => {
+          console.log('Video load started');
+          updatePlayerState({ isLoading: true, hasError: false });
+        });
+
+        player.on('loadedmetadata', () => {
+          console.log('Video metadata loaded');
+          const duration = player.duration();
+          updatePlayerState({
+            duration: duration || 0,
+            isLoading: false,
+          });
+          
+          
+          const videoEl = player.el().querySelector('video');
+          if (videoEl) {
+            videoEl.style.display = 'block';
+            videoEl.style.visibility = 'visible';
+          }
+        });
+
+        player.on('canplay', () => {
+          console.log('Video can play');
+          updatePlayerState({ isLoading: false });
+        });
+
+        
+        player.on('play', () => {
+          updatePlayerState({ isPlaying: true });
+        });
+
+        player.on('pause', () => {
+          updatePlayerState({ isPlaying: false });
+        });
+
+        player.on('timeupdate', () => {
+          const currentTime = player.currentTime() || 0;
+          const duration = player.duration() || 0;
+          
+          updatePlayerState({
+            currentTime,
+            progress: duration > 0 ? (currentTime / duration) * 100 : 0,
+          });
+        });
+
+        player.on('progress', () => {
+          const buffered = player.buffered();
+          if (buffered.length > 0) {
+            const bufferedEnd = buffered.end(buffered.length - 1);
+            const duration = player.duration() || 0;
+            
+            updatePlayerState({
+              bufferProgress: duration > 0 ? (bufferedEnd / duration) * 100 : 0,
+            });
+          }
+        });
+
+        player.on('waiting', () => {
+          updatePlayerState({ isLoading: true });
+        });
+
+        player.on('canplaythrough', () => {
+          updatePlayerState({ isLoading: false });
+        });
+
+        player.on('error', (e: Event) => {
+          const error = player.error();
+          console.error('Video.js error:', e, error);
+          
+          let errorMessage = 'Unable to load this video.';
+          
+          if (error) {
+            switch (error.code) {
+              case 1: 
+                errorMessage = 'Video playback was aborted.';
+                break;
+              case 2: 
+                errorMessage = 'Network error occurred while loading the video.';
+                break;
+              case 3: 
+                errorMessage = 'Video format is not supported or corrupted.';
+                break;
+              case 4: 
+                const extension = videoSource.split('.').pop()?.toLowerCase();
+                if (extension === 'mkv') {
+                  errorMessage = 'MKV files are not supported by web browsers. Please use MP4, WebM, or other web-compatible formats.';
+                } else {
+                  errorMessage = 'Video format is not supported by your browser.';
+                }
+                break;
+            }
+          }
+          
+          updatePlayerState({
+            isLoading: false,
+            hasError: true,
+            errorMessage
+          });
+        });
+
+        
+        if (subtitles) {
+          player.addRemoteTextTrack({
+            kind: 'subtitles',
+            src: subtitles,
+            srclang: 'en',
+            label: 'English',
+            default: true
+          }, false);
+        }
+
+      } catch (error) {
+        console.error('Error initializing Video.js:', error);
+        updatePlayerState({
+          hasError: true,
+          errorMessage: 'Failed to initialize video player.'
+        });
+      }
+    }, 100); 
+
+    return () => {
+      if (playerRef.current) {
+        try {
+          playerRef.current.dispose();
+          playerRef.current = null;
+        } catch (error) {
+          console.error('Error disposing player:', error);
+        }
+      }
+    };
+  }, [videoSource, subtitles, playerState.volume, playerState.playbackRate, updatePlayerState]);
+
+  
+  useEffect(() => {
+    if (isMobile) return;
+
+    const handleMouseMove = () => {
+      updatePlayerState({ showControls: true });
+      
+      if (mouseIdleTimer) {
+        clearTimeout(mouseIdleTimer);
+      }
+      
+      const timer = setTimeout(() => {
+        if (!showSettingsMenu ) {
+          updatePlayerState({ showControls: false });
+        }
+      }, 3000);
+      
+      setMouseIdleTimer(timer);
+    };
+
+    const handleMouseLeave = () => {
+      if (!showSettingsMenu) {
+        updatePlayerState({ showControls: false });
+      }
+    };
+
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('mousemove', handleMouseMove);
+      container.addEventListener('mouseleave', handleMouseLeave);
+    }
+
+    return () => {
+      if (container) {
+        container.removeEventListener('mousemove', handleMouseMove);
+        container.removeEventListener('mouseleave', handleMouseLeave);
+      }
+      if (mouseIdleTimer) {
+        clearTimeout(mouseIdleTimer);
+      }
+    };
+  }, [isMobile, showSettingsMenu, mouseIdleTimer, updatePlayerState]);
+
+  
+  const togglePlay = useCallback(() => {
     if (playerRef.current) {
       if (playerState.isPlaying) {
         playerRef.current.pause();
       } else {
         playerRef.current.play();
       }
-      updatePlayerState({ isPlaying: !playerState.isPlaying });
     }
-  };
+  }, [playerState.isPlaying]);
 
-  const seek = (seconds: number) => {
-    if (videoRef.current) {
+  const seek = useCallback((seconds: number) => {
+    if (playerRef.current) {
+      const currentTime = playerRef.current.currentTime() || 0;
       const newTime = Math.max(
         0,
-        Math.min(videoRef.current.currentTime + seconds, playerState.duration)
+        Math.min(currentTime + seconds, playerState.duration)
       );
-      videoRef.current.currentTime = newTime;
-      updatePlayerState({
-        currentTime: newTime,
-        progress: (newTime / playerState.duration) * 100,
-      });
+      playerRef.current.currentTime(newTime);
     }
-  };
+  }, [playerState.duration]);
 
-  const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProgressChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newProgress = parseFloat(e.target.value);
-    if (
-      videoRef.current &&
-      playerState.duration > 0 &&
-      isFinite(playerState.duration)
-    ) {
+    if (playerRef.current && playerState.duration > 0) {
       const newTime = (newProgress / 100) * playerState.duration;
-      videoRef.current.currentTime = newTime;
-      updatePlayerState({ currentTime: newTime, progress: newProgress });
+      playerRef.current.currentTime(newTime);
     }
-  };
+  }, [playerState.duration]);
 
-  // --- Volume Controls ---
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
     updatePlayerState({ volume: newVolume });
-    if (videoRef.current) {
-      videoRef.current.volume = newVolume;
-      videoRef.current.muted = newVolume === 0;
+    if (playerRef.current) {
+      playerRef.current.volume(newVolume);
     }
     if (newVolume > 0) {
       updatePlayerState({ lastVolume: newVolume });
     }
-  };
+  }, [updatePlayerState]);
 
-  const toggleMute = () => {
-    if (videoRef.current) {
+  const toggleMute = useCallback(() => {
+    if (playerRef.current) {
       if (playerState.volume > 0) {
         updatePlayerState({ lastVolume: playerState.volume, volume: 0 });
-        videoRef.current.volume = 0;
-        videoRef.current.muted = true;
+        playerRef.current.volume(0);
       } else {
-        const newVolume =
-          playerState.lastVolume > 0 ? playerState.lastVolume : 1;
+        const newVolume = playerState.lastVolume > 0 ? playerState.lastVolume : 1;
         updatePlayerState({ volume: newVolume });
-        videoRef.current.volume = newVolume;
-        videoRef.current.muted = false;
+        playerRef.current.volume(newVolume);
+      }
+    }
+  }, [playerState.volume, playerState.lastVolume, updatePlayerState]);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  }, []);
+
+  
+  useEffect(() => {
+    if (isMobile) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      
+      if (['Space', 'ArrowUp', 'ArrowDown', 'KeyF', 'KeyM'].includes(e.code)) {
+        e.preventDefault();
+      }
+
+      switch (e.code) {
+        case 'Space':
+          togglePlay();
+          break;
+        case 'ArrowUp':
+          handleVolumeChange({ target: { value: Math.min(1, playerState.volume + 0.1).toString() } } as React.ChangeEvent<HTMLInputElement>);
+          break;
+        case 'ArrowDown':
+          handleVolumeChange({ target: { value: Math.max(0, playerState.volume - 0.1).toString() } } as React.ChangeEvent<HTMLInputElement>);
+          break;
+        case 'KeyF':
+          toggleFullscreen();
+          break;
+        case 'KeyM':
+          toggleMute();
+          break;
+        case 'Escape':
+          if (playerState.isFullscreen) {
+            toggleFullscreen();
+          } else if (showSettingsMenu) {
+            setShowSettingsMenu(false);
+          }
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isMobile, playerState.volume, playerState.isFullscreen, showSettingsMenu, togglePlay, handleVolumeChange, toggleFullscreen, toggleMute]);
+
+  
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isMobile) return;
+    
+    const touch = e.touches[0];
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    const now = Date.now();
+
+    if (touchState.doubleTapTimeout) {
+      clearTimeout(touchState.doubleTapTimeout);
+    }
+
+    updateTouchState({
+      initialTouch: { x, y },
+      touchStartTime: now,
+    });
+
+    
+    if (now - touchState.lastTap < 300) {
+      
+      togglePlay();
+      updateTouchState({ lastTap: 0 });
+    } else {
+      updateTouchState({ lastTap: now });
+      const doubleTapTimeout = setTimeout(() => {
+        updatePlayerState({ showControls: !playerState.showControls });
+      }, 300);
+      updateTouchState({ doubleTapTimeout });
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isMobile) return;
+    
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const currentY = touch.clientY - rect.top;
+    const deltaY = currentY - touchState.initialTouch.y;
+
+    if (touchState.doubleTapTimeout) {
+      clearTimeout(touchState.doubleTapTimeout);
+      updateTouchState({ doubleTapTimeout: null });
+    }
+
+    
+    
+    if (Math.abs(deltaY) > 20) {
+      const isRightSide = touchState.initialTouch.x > rect.width / 2;
+      
+      if (isRightSide && !touchState.adjustingVolume) {
+        updateTouchState({ 
+          adjustingVolume: true, 
+          initialValue: playerState.volume,
+          showVolumeIndicator: true 
+        });
+      } else if (!isRightSide && !touchState.adjustingBrightness) {
+        updateTouchState({ 
+          adjustingBrightness: true, 
+          initialValue: playerState.brightness,
+          showBrightnessIndicator: true 
+        });
+      }
+      
+      if (touchState.adjustingVolume) {
+        const volumeDelta = -(deltaY / rect.height);
+        const newVolume = Math.max(0, Math.min(1, touchState.initialValue + volumeDelta));
+        handleVolumeChange({ target: { value: newVolume.toString() } } as React.ChangeEvent<HTMLInputElement>);
+      } else if (touchState.adjustingBrightness) {
+        const brightnessDelta = -(deltaY / rect.height) * 100;
+        const newBrightness = Math.max(20, Math.min(150, touchState.initialValue + brightnessDelta));
+        updatePlayerState({ brightness: newBrightness });
       }
     }
   };
 
-  const getVolumeIcon = () => {
-    if (playerState.volume === 0) return <RiVolumeMuteLine size={24} />;
-    if (playerState.volume <= 0.33) return <RiVolumeDownLine size={24} />;
-    if (playerState.volume <= 0.66) return <RiVolumeDownLine size={24} />;
-    return <RiVolumeUpLine size={24} />;
+  const handleTouchEnd = () => {
+    if (!isMobile) return;
+
+    setTimeout(() => {
+      updateTouchState({
+        showVolumeIndicator: false,
+        showBrightnessIndicator: false,
+      });
+    }, 1000);
+
+    updateTouchState({
+      adjustingVolume: false,
+      adjustingBrightness: false,
+    });
   };
 
-  // --- Playback Speed Controls ---
+  const getVolumeIcon = () => {
+    if (playerState.volume === 0) return <RiVolumeMuteLine size={isMobile ? 28 : 24} />;
+    if (playerState.volume <= 0.33) return <RiVolumeDownLine size={isMobile ? 28 : 24} />;
+    return <RiVolumeUpLine size={isMobile ? 28 : 24} />;
+  };
+
   const handleSpeedChange = (rate: number) => {
-    if (videoRef.current) {
-      videoRef.current.playbackRate = rate;
+    if (playerRef.current) {
+      playerRef.current.playbackRate(rate);
       updatePlayerState({ playbackRate: rate });
       setShowSettingsMenu(false);
     }
   };
-  // --- End Playback Speed Controls ---
-
-  const videoClasses = useMemo(() => {
-    const baseClasses = "mx-auto my-auto z-0";
-    switch (aspectRatioMode) {
-      case "fitScreen":
-        return `${baseClasses} w-full h-full object-cover`;
-      case "fill":
-        return `${baseClasses} w-full h-full object-fill`;
-      case "ratio16_9":
-        return `${baseClasses} aspect-video object-contain max-w-full max-h-full`;
-      case "ratio4_3":
-        return `${baseClasses} aspect-[4/3] object-contain max-w-full max-h-full`;
-      case "bestFit":
-      default:
-        return `${baseClasses} max-w-full max-h-full object-contain`;
-    }
-  }, [aspectRatioMode]);
-
-  const toggleFullscreen = () => {
-    const playerElement = playerRef.current;
-    if (!playerElement) return;
-
-    if (!document.fullscreenElement) {
-      playerElement.requestFullscreen().catch((err: any) => {
-        console.error(
-          `Error attempting to enable full-screen mode: ${err.message} (${err.name})`
-        );
-      });
-      updatePlayerState({ isFullscreen: true });
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-        updatePlayerState({ isFullscreen: false });
-      }
-    }
-  };
 
   useEffect(() => {
-  const handleFullscreenChange = () => {
-    updatePlayerState({ isFullscreen: !!document.fullscreenElement });
-  };
-  document.addEventListener("fullscreenchange", handleFullscreenChange);
-  return () =>
-    document.removeEventListener("fullscreenchange", handleFullscreenChange);
-}, [updatePlayerState]);
+    const handleFullscreenChange = () => {
+      updatePlayerState({ isFullscreen: !!document.fullscreenElement });
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, [updatePlayerState]);
 
   const formatTime = (seconds: number) => {
     if (isNaN(seconds) || !isFinite(seconds)) return "0:00";
@@ -494,33 +648,110 @@ useEffect(() => {
     return `${minutes}:${remainingSeconds < 10 ? "0" : ""}${remainingSeconds}`;
   };
 
-  const showLoadingOverlay =
-    playerState.isLoading &&
-    (playerState.currentTime < 1 || (videoRef.current?.readyState ?? 0) < 3);
+  
+  const handleVideoClick = (e: React.MouseEvent) => {
+    if (isMobile) return;
+    
+    
+    if (settingsMenuRef.current?.contains(e.target as Node) || 
+        document.getElementById("video-settings-button")?.contains(e.target as Node)) {
+      return;
+    }
+    
+    if (showSettingsMenu) {
+      setShowSettingsMenu(false);
+      return;
+    }
+    
+    togglePlay();
+  };
+
+  const handleVideoDoubleClick = () => {
+    if (!isMobile) {
+      toggleFullscreen();
+    }
+  };
+
+  const showLoadingOverlay = playerState.isLoading && playerState.currentTime < 3;
 
   return (
     <motion.div
+      ref={containerRef}
       className="font-mont fixed inset-0 bg-black z-50 flex flex-col select-none"
+      style={{ touchAction: isMobile ? 'none' : 'auto' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      ref={playerRef}
-      onMouseLeave={() => {
-        if (!showSettingsMenu) {
-          updatePlayerState({ showControls: false });
-        }
-      }}
+      onTouchStart={isMobile ? handleTouchStart : undefined}
+      onTouchMove={isMobile ? handleTouchMove : undefined}
+      onTouchEnd={isMobile ? handleTouchEnd : undefined}
     >
       <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+        {/* Close button */}
         <motion.button
           onClick={onClose}
-          className="absolute top-4 left-4 z-30 text-white bg-black/50 rounded-full p-2 hover:bg-red-600 transition-all duration-300"
+          className={`absolute top-4 left-4 z-30 text-white bg-black/50 rounded-full transition-all duration-300 hover:bg-red-600 ${
+            isMobile ? 'p-3' : 'p-2'
+          }`}
           initial={{ opacity: 0 }}
           animate={{ opacity: playerState.showControls ? 1 : 0 }}
           transition={{ duration: 0.3 }}
         >
-          <RiArrowLeftLine size={24} />
+          <RiArrowLeftLine size={isMobile ? 28 : 24} />
         </motion.button>
+
+        {/* Error overlay for unsupported formats */}
+        {playerState.hasError && (
+          <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/50">
+            <div className="text-white text-center bg-black/30 p-6 rounded-md max-w-md mx-4">
+              <div className="text-6xl mb-4">⚠️</div>
+              <h3 className="text-xl font-medium mb-2">Video Error</h3>
+              <p className="text-sm text-gray-300 mb-4">
+                {playerState.errorMessage}
+              </p>
+              <div className="space-y-2">
+                <div className="text-xs text-gray-400">
+                  Supported formats: MP4, WebM, OGG
+                </div>
+                <button
+                  onClick={onClose}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors"
+                >
+                  Close Player
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Touch indicators (mobile only) */}
+        {isMobile && touchState.showVolumeIndicator && (
+          <motion.div
+            className="absolute top-1/2 right-8 transform -translate-y-1/2 bg-black/80 text-white p-4 rounded-lg z-30"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+          >
+            <div className="flex flex-col items-center">
+              {getVolumeIcon()}
+              <div className="mt-2 text-sm">{Math.round(playerState.volume * 100)}%</div>
+            </div>
+          </motion.div>
+        )}
+
+        {isMobile && touchState.showBrightnessIndicator && (
+          <motion.div
+            className="absolute top-1/2 left-8 transform -translate-y-1/2 bg-black/80 text-white p-4 rounded-lg z-30"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+          >
+            <div className="flex flex-col items-center">
+              <div className="text-2xl">☀️</div>
+              <div className="mt-2 text-sm">{Math.round(playerState.brightness)}%</div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Loading Overlay */}
         {showLoadingOverlay && (
@@ -532,55 +763,52 @@ useEffect(() => {
                   alt="Loading logo"
                   width={500}
                   height={325}
-                  className="w-full h-auto animate-pulse-opacity"
+                  className="w-full h-auto animate-pulse"
                   priority
                 />
               </div>
             ) : (
               <div className="text-white text-xl font-medium text-center bg-black/30 p-4 rounded-md">
                 <h3>{title || "Loading..."}</h3>
-
                 <div className="mt-2 text-sm">Buffering...</div>
               </div>
             )}
           </div>
         )}
 
-        <div data-vjs-player>
+        {/* Video Container */}
+        <div 
+          className="w-full h-full flex items-center justify-center"
+          onClick={handleVideoClick}
+          onDoubleClick={handleVideoDoubleClick}
+        >
           <video
             ref={videoRef}
-            className={videoClasses + " video-js vjs-big-play-centered"}
-            crossOrigin="anonymous"
-            onClick={(e) => {
-              if (
-                settingsMenuRef.current &&
-                settingsMenuRef.current.contains(e.target as Node)
-              ) {
-                return;
-              }
-
-              const settingsButton = document.getElementById(
-                "video-settings-button"
-              );
-              if (settingsButton && settingsButton.contains(e.target as Node)) {
-                return;
-              }
-
-              if (showSettingsMenu) {
-                setShowSettingsMenu(false);
-
-                return;
-              }
-              togglePlay();
+            className="video-js vjs-default-skin"
+            style={{ 
+              filter: `brightness(${playerState.brightness}%)`,
+              width: '100%',
+              height: '100%',
+              maxWidth: '100%',
+              maxHeight: '100%',
+              objectFit: 'contain',
+              display: 'block',
+              visibility: 'visible'
             }}
-            onDoubleClick={toggleFullscreen}
+            crossOrigin="anonymous"
+            data-setup="{}"
           />
         </div>
 
+        {/* Settings Menu */}
         {showSettingsMenu && (
           <motion.div
             ref={settingsMenuRef}
-            className="absolute bottom-24 right-5 bg-gray-800/95 text-white rounded-lg shadow-xl z-30 w-auto min-w-[320px] max-w-sm"
+            className={`absolute bg-gray-800/95 text-white rounded-lg shadow-xl z-30 ${
+              isMobile 
+                ? 'bottom-20 left-4 right-4 max-h-[60vh]' 
+                : 'bottom-24 right-5 w-auto min-w-[320px] max-w-sm'
+            }`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
@@ -592,84 +820,71 @@ useEffect(() => {
                 <button
                   key={tab}
                   onClick={() => setActiveSettingsTab(tab)}
-                  className={`px-3 py-2 text-sm font-medium focus:outline-none transition-colors duration-150
-                    ${
-                      activeSettingsTab === tab
-                        ? "border-b-2 border-red-500 text-red-500"
-                        : "text-gray-300 hover:text-white hover:border-b-2 hover:border-gray-500"
-                    }`}
+                  className={`px-3 py-3 text-sm font-medium focus:outline-none transition-colors duration-150 ${
+                    isMobile ? 'min-h-[44px]' : ''
+                  } ${
+                    activeSettingsTab === tab
+                      ? "border-b-2 border-red-500 text-red-500"
+                      : "text-gray-300 hover:text-white hover:border-b-2 hover:border-gray-500"
+                  }`}
                 >
                   {tab}
                 </button>
               ))}
             </div>
             <div
-              className="p-4 h-[250px] overflow-y-auto"
-              style={{
-                scrollbarWidth: "thin",
-                scrollbarColor: "#ef4444 #1f2937",
-                msOverflowStyle: "none",
-              }}
+              className={`p-4 overflow-y-auto ${
+                isMobile ? 'max-h-[40vh]' : 'max-h-[300px]'
+              }`}
             >
-              <style jsx>{`
-                div::-webkit-scrollbar {
-                  width: 8px;
-                }
-                div::-webkit-scrollbar-track {
-                  background: #1f2937;
-                  border-radius: 10px;
-                }
-                div::-webkit-scrollbar-thumb {
-                  background: #ef4444;
-                  border-radius: 10px;
-                }
-              `}</style>
-
               {activeSettingsTab === "Speed" && (
-                <div className="space-y-4">
-                  <div>
-                    <div className="text-gray-400 text-xs mb-1 font-semibold">
-                      Playback Speed
-                    </div>
-                    <div className="flex flex-col space-y-1">
-                      {playbackSpeeds.map((speed) => (
-                        <button
-                          key={`speed-${speed}`}
-                          onClick={() => handleSpeedChange(speed)}
-                          className={`text-left text-sm px-3 py-1.5 rounded w-full transition-colors ${
-                            playerState.playbackRate === speed
-                              ? "font-semibold bg-red-600 text-white"
-                              : "hover:bg-gray-700 text-gray-200"
-                          }`}
-                        >
-                          {speed === 1 ? "Normal" : `${speed}x`}
-                        </button>
-                      ))}
-                    </div>
+                <div className="space-y-2">
+                  <div className="text-gray-400 text-xs mb-3 font-semibold">
+                    Playback Speed
+                  </div>
+                  <div className="flex flex-col space-y-2">
+                    {playbackSpeeds.map((speed) => (
+                      <button
+                        key={`speed-${speed}`}
+                        onClick={() => handleSpeedChange(speed)}
+                        className={`text-left text-sm px-4 py-3 rounded w-full transition-colors ${
+                          isMobile ? 'min-h-[44px]' : 'py-2'
+                        } ${
+                          playerState.playbackRate === speed
+                            ? "font-semibold bg-red-600 text-white"
+                            : "hover:bg-gray-700 text-gray-200"
+                        }`}
+                      >
+                        {speed === 1 ? "Normal" : `${speed}x`}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
               {activeSettingsTab === "Settings" && (
-                <div className="space-y-4">
-                  <div>
-                    <div className="text-gray-400 text-xs mb-1 font-semibold">
-                      Aspect Ratio
-                    </div>
-                    <div className="flex flex-col space-y-1">
-                      {aspectRatioModes.map((mode) => (
-                        <button
-                          key={mode}
-                          onClick={() => setAspectRatioMode(mode)}
-                          className={`text-left text-sm px-3 py-1.5 rounded w-full transition-colors ${
-                            aspectRatioMode === mode
-                              ? "font-semibold bg-red-600 text-white"
-                              : "hover:bg-gray-700 text-gray-200"
-                          }`}
-                        >
-                          {getAspectRatioLabel(mode)}
-                        </button>
-                      ))}
-                    </div>
+                <div className="space-y-2">
+                  <div className="text-gray-400 text-xs mb-3 font-semibold">
+                    Aspect Ratio
+                  </div>
+                  <div className="flex flex-col space-y-2">
+                    {aspectRatioModes.map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => {
+                          setAspectRatioMode(mode);
+                          setShowSettingsMenu(false);
+                        }}
+                        className={`text-left text-sm px-4 py-3 rounded w-full transition-colors ${
+                          isMobile ? 'min-h-[44px]' : 'py-2'
+                        } ${
+                          aspectRatioMode === mode
+                            ? "font-semibold bg-red-600 text-white"
+                            : "hover:bg-gray-700 text-gray-200"
+                        }`}
+                      >
+                        {getAspectRatioLabel(mode)}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
@@ -682,9 +897,18 @@ useEffect(() => {
           </motion.div>
         )}
 
+        {/* Desktop keyboard shortcuts help */}
+        {!isMobile && playerState.showControls && (
+          <div className="absolute top-4 right-4 z-20 text-white text-xs bg-black/50 rounded px-2 py-1 opacity-50 hover:opacity-100 transition-opacity">
+            Space: Play/Pause | ↑↓: Volume | F: Fullscreen | M: Mute
+          </div>
+        )}
+
         {/* Video Controls Container */}
         <motion.div
-          className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 z-20"
+          className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent z-20 ${
+            isMobile ? 'p-4 pb-safe' : 'p-4'
+          }`}
           initial={{ y: 20, opacity: 0 }}
           animate={{
             y: playerState.showControls ? 0 : 20,
@@ -693,14 +917,21 @@ useEffect(() => {
           transition={{ duration: 0.3 }}
         >
           {/* Progress bar */}
-          <div className="flex items-center mb-3">
-            <span className="text-white text-xs mr-2 w-10 text-right">
+          <div className={`flex items-center ${isMobile ? 'mb-4' : 'mb-3'}`}>
+            <span className={`text-white text-xs mr-2 w-12 text-right ${isMobile ? 'text-sm' : ''}`}>
               {formatTime(playerState.currentTime)}
             </span>
-            <div className="relative w-full mx-2 group h-4 flex items-center">
+            <div className={`relative w-full mx-2 group flex items-center ${isMobile ? 'h-6' : 'h-4'}`}>
               {/* Buffer progress bar */}
               <div
-                className="absolute left-0 top-1/2 transform -translate-y-1/2 h-1 bg-gray-500 rounded-full w-full"
+                className={`absolute left-0 top-1/2 transform -translate-y-1/2 bg-gray-600 rounded-full w-full ${
+                  isMobile ? 'h-1.5' : 'h-1'
+                }`}
+              />
+              <div
+                className={`absolute left-0 top-1/2 transform -translate-y-1/2 bg-gray-500 rounded-full ${
+                  isMobile ? 'h-1.5' : 'h-1'
+                }`}
                 style={{ width: `${playerState.bufferProgress}%` }}
               />
               {/* Seek bar */}
@@ -710,13 +941,15 @@ useEffect(() => {
                 max="100"
                 value={playerState.progress}
                 onChange={handleProgressChange}
-                className="w-full h-1 bg-transparent rounded-lg appearance-none cursor-pointer accent-red-600 z-10"
+                className={`w-full bg-transparent rounded-lg appearance-none cursor-pointer accent-red-600 z-10 ${
+                  isMobile ? 'h-6' : 'h-4'
+                }`}
                 style={{
-                  background: `linear-gradient(to right, #ef4444 0%, #ef4444 ${playerState.progress}%, rgba(107, 114, 128, 0.5) ${playerState.progress}%, rgba(107, 114, 128, 0.5) 100%)`,
+                  background: `linear-gradient(to right, #ef4444 0%, #ef4444 ${playerState.progress}%, transparent ${playerState.progress}%, transparent 100%)`,
                 }}
               />
             </div>
-            <span className="text-white text-xs ml-2 w-10">
+            <span className={`text-white text-xs ml-2 w-12 ${isMobile ? 'text-sm' : ''}`}>
               {formatTime(playerState.duration)}
             </span>
           </div>
@@ -724,103 +957,117 @@ useEffect(() => {
           {/* Control buttons */}
           <div className="flex items-center justify-between">
             {/* Left Controls */}
-            <div className="flex items-center space-x-2 sm:space-x-3">
+            <div className={`flex items-center ${isMobile ? 'space-x-4' : 'space-x-2 sm:space-x-3'}`}>
               <button
                 onClick={togglePlay}
-                className="text-white hover:text-gray-300 transition-colors"
+                className={`text-white hover:text-gray-300 transition-colors ${
+                  isMobile ? 'p-2' : ''
+                }`}
                 aria-label={playerState.isPlaying ? "Pause" : "Play"}
               >
                 {playerState.isPlaying ? (
-                  <RiPauseLargeFill size={28} />
+                  <RiPauseLargeFill size={isMobile ? 32 : 28} />
                 ) : (
-                  <RiPlayLargeLine size={28} />
+                  <RiPlayLargeLine size={isMobile ? 32 : 28} />
                 )}
               </button>
 
               <button
                 onClick={() => seek(-10)}
-                className="text-white hover:text-gray-300 transition-colors"
+                className={`text-white hover:text-gray-300 transition-colors ${
+                  isMobile ? 'p-2' : ''
+                }`}
                 aria-label="Seek backward 10 seconds"
               >
-                <RiReplay10Line size={28} />
+                <RiReplay10Line size={isMobile ? 32 : 28} />
               </button>
 
               <button
                 onClick={() => seek(10)}
-                className="text-white hover:text-gray-300 transition-colors"
+                className={`text-white hover:text-gray-300 transition-colors ${
+                  isMobile ? 'p-2' : ''
+                }`}
                 aria-label="Seek forward 10 seconds"
               >
-                <RiForward10Line size={28} />
+                <RiForward10Line size={isMobile ? 32 : 28} />
               </button>
 
-              {/* Volume Control */}
-              <div className="flex items-center group">
-                <button
-                  onClick={toggleMute}
-                  className="text-white hover:text-gray-300 transition-colors mr-1"
-                  aria-label={playerState.volume > 0 ? "Mute" : "Unmute"}
-                >
-                  {getVolumeIcon()}
-                </button>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={playerState.volume}
-                  onChange={handleVolumeChange}
-                  className="w-0 bg-white group-hover:w-20 h-1.5 rounded-lg appearance-none cursor-pointer accent-red-600 transition-all duration-300 ease-in-out opacity-0 group-hover:opacity-100 align-middle"
-                  aria-label="Volume"
-                />
-              </div>
+              {/* Volume Control - Desktop only */}
+              {!isMobile && (
+                <div className="flex items-center group ml-2">
+                  <button
+                    onClick={toggleMute}
+                    className="text-white hover:text-gray-300 transition-colors mr-2"
+                    aria-label={playerState.volume > 0 ? "Mute" : "Unmute"}
+                  >
+                    {getVolumeIcon()}
+                  </button>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={playerState.volume}
+                    onChange={handleVolumeChange}
+                    className="w-20 h-1.5 rounded-lg appearance-none cursor-pointer accent-red-600 bg-gray-600"
+                    aria-label="Volume"
+                  />
+                  <span className="text-white text-xs ml-2 w-8 text-center">
+                    {Math.round(playerState.volume * 100)}
+                  </span>
+                </div>
+              )}
             </div>
+
+            {/* Title - Responsive */}
             <div className="flex-grow text-center px-2 sm:px-4 overflow-hidden">
-              <h3 className="text-white text-sm sm:text-base font-medium truncate">
+              <h3 className={`text-white font-medium truncate ${
+                isMobile ? 'text-sm' : 'text-sm sm:text-base'
+              }`}>
                 {title || ""}
               </h3>
             </div>
 
             {/* Right Controls */}
-            <div className="flex items-center space-x-2 sm:space-x-3">
+            <div className={`flex items-center ${isMobile ? 'space-x-4' : 'space-x-2 sm:space-x-3'}`}>
               {quality && (
-                <div className="text-white text-xs bg-black/30 px-1.5 py-0.5 rounded hidden sm:block">
+                <div className={`text-white text-xs bg-black/30 px-2 py-1 rounded ${
+                  isMobile ? 'hidden' : 'hidden sm:block'
+                }`}>
                   {quality}
                 </div>
               )}
 
-              <div className="relative">
-                <button
-                  id="video-settings-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowSettingsMenu((prev) => {
-                      if (!prev) setActiveSettingsTab("Settings");
-                      return !prev;
-                    });
-                  }}
-                  className="text-white hover:text-gray-300 transition-colors"
-                  aria-label="Settings"
-                >
-                  <RiSettingsLine size={24} />
-                </button>
-              </div>
-              <div className="relative">
-                <button
-                  onClick={toggleFullscreen}
-                  className="text-white hover:text-gray-300 transition-colors"
-                  aria-label={
-                    playerState.isFullscreen
-                      ? "Exit Fullscreen"
-                      : "Enter Fullscreen"
-                  }
-                >
-                  {playerState.isFullscreen ? (
-                    <RiFullscreenExitLine size={24} />
-                  ) : (
-                    <RiFullscreenLine size={24} />
-                  )}
-                </button>
-              </div>
+              <button
+                id="video-settings-button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowSettingsMenu((prev) => {
+                    if (!prev) setActiveSettingsTab("Settings");
+                    return !prev;
+                  });
+                }}
+                className={`text-white hover:text-gray-300 transition-colors ${
+                  isMobile ? 'p-2' : ''
+                }`}
+                aria-label="Settings"
+              >
+                <RiSettingsLine size={isMobile ? 32 : 24} />
+              </button>
+
+              <button
+                onClick={toggleFullscreen}
+                className={`text-white hover:text-gray-300 transition-colors ${
+                  isMobile ? 'p-2' : ''
+                }`}
+                aria-label={playerState.isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+              >
+                {playerState.isFullscreen ? (
+                  <RiFullscreenExitLine size={isMobile ? 32 : 24} />
+                ) : (
+                  <RiFullscreenLine size={isMobile ? 32 : 24} />
+                )}
+              </button>
             </div>
           </div>
         </motion.div>

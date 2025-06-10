@@ -43,10 +43,11 @@ export default async function handler(req: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
+    console.error('Authentication error:', error);
     return NextResponse.json(
       {
         error: "Internal server error",
-        authenticated: false,
+        verified: false,
       },
       { status: 500 }
     );
