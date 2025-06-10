@@ -149,6 +149,7 @@ const HeroSlideshow = () => {
                   height={208}
                   className="object-contain w-48 sm:w-64 md:w-80 lg:w-96 h-auto"
                   priority
+                  unoptimized
                 />
               ) : (
                 <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white">

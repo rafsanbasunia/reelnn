@@ -765,6 +765,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   height={325}
                   className="w-full h-auto animate-pulse"
                   priority
+                  unoptimized
                 />
               </div>
             ) : (
