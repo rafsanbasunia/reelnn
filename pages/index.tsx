@@ -9,6 +9,7 @@ import Link from "next/link";
 import SectionHeading from "@/components/SectionHeading";
 import Head from "next/head";
 import { NEXT_PUBLIC_SITE_NAME } from "@/config";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function Home() {
   const { movies, shows, trending, isLoading, error } = useContent();
@@ -17,7 +18,8 @@ export default function Home() {
   const safeShows = shows?.filter((item) => item) || [];
 
   return (
-    <>
+    <ProtectedRoute>
+
       <Head>
         <title>{NEXT_PUBLIC_SITE_NAME}</title>
         <meta
@@ -122,6 +124,6 @@ export default function Home() {
         </div>
         <Footer />
       </main>
-    </>
+    </ProtectedRoute>
   );
 }

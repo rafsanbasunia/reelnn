@@ -3,6 +3,7 @@ import "@/styles/globals.css";
 import { HeroSliderProvider } from "../context/HeroSliderContext";
 import { ContentProvider } from "../context/ContentContext";
 import { Montserrat } from "next/font/google";
+import { AuthProvider } from "@/context/AuthContext";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -14,11 +15,13 @@ const montserrat = Montserrat({
 function MyApp({ Component, pageProps }: AppProps) {
   return (
     <div className={`${montserrat.variable}`}>
+      <AuthProvider>
       <HeroSliderProvider>
         <ContentProvider>
           <Component {...pageProps} />
         </ContentProvider>
       </HeroSliderProvider>
+      </AuthProvider>
     </div>
   );
 }

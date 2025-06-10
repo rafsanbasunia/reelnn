@@ -9,6 +9,7 @@ import Backward from "@/components/Backward";
 import Image from "next/image";
 import Head from "next/head";
 import { NEXT_PUBLIC_SITE_NAME } from "@/config";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 interface Episode {
   episode_number: number;
@@ -244,6 +245,7 @@ const Slug = () => {
     : "";
 
   return (
+    <ProtectedRoute>
     <div className="font-mont min-h-screen relative">
       <Head>
         <title>
@@ -342,6 +344,7 @@ const Slug = () => {
         </div>
       </div>
     </div>
+    </ProtectedRoute>
   );
 };
 

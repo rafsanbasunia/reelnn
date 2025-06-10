@@ -17,6 +17,10 @@ export const NEXT_PUBLIC_INSTAGRAM_CONTACT =
 
 export const SITE_SECRET = process.env.SITE_SECRET || "your_secret_key";
 
+export const ENABLE_AUTH_PROTECTION = process.env.NEXT_PUBLIC_ENABLE_AUTH_PROTECTION === 'true' || false;
+
+export const LOGIN_PAGE_POSTER = process.env.NEXT_PUBLIC_LOGIN_PAGE_POSTER || "";
+
 // Backend API
 export const BACKEND_URL = process.env.BACKEND_URL || "http://0.0.0.0:6519";
 
@@ -24,7 +28,8 @@ export const BACKEND_URL = process.env.BACKEND_URL || "http://0.0.0.0:6519";
 // Telegram
 export const NEXT_PUBLIC_TELEGRAM_BOT_NAME =
   process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || "reelnnbot";
-
+export const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '12346578:CJNDSccosadckokco';
+export const TELEGRAM_BOT_USERNAME = NEXT_PUBLIC_TELEGRAM_BOT_NAME;
 
 // Shortener API
 export const SHORTENER_API_URL = process.env.SHORTENER_API_URL || '';

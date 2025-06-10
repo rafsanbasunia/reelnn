@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
+import videojs from 'video.js';
+import 'video.js/dist/video-js.css';
 import {
   RiPlayLargeLine,
   RiPauseLargeFill,
@@ -87,9 +89,89 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     useState<SettingTab>("Settings");
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const playerRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<any>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
+
+  // Initialize Video.js
+  useEffect(() => {
+    if (!videoRef.current) return;
+
+    // Video.js options
+    const videoJsOptions = {
+      autoplay: true,
+      controls: false, 
+      responsive: true,
+      fluid: true,
+      sources: [{
+        src: videoSource,
+        type: 'video/mp4', // Adjust based on your video format
+      }],
+      playbackRates: playbackSpeeds,
+    };
+
+    // Initialize Video.js player
+    const player = videojs(videoRef.current, videoJsOptions, function onPlayerReady() {
+      player.volume(playerState.volume);
+      player.playbackRate(playerState.playbackRate);
+    });
+
+    playerRef.current = player;
+
+    // Set up event listeners
+    player.on('play', () => updatePlayerState({ isPlaying: true, isLoading: false }));
+    player.on('pause', () => updatePlayerState({ isPlaying: false }));
+    player.on('timeupdate', () => {
+      const currentTime = player.currentTime();
+      const duration = player.duration();
+      
+      if (currentTime !== undefined && duration !== undefined && duration > 0) {
+        updatePlayerState({
+          currentTime: currentTime,
+          progress: (currentTime / duration) * 100,
+        });
+      }
+    });
+    player.on('loadedmetadata', () => {
+      const duration = player.duration();
+      updatePlayerState({
+        duration: duration !== undefined ? duration : 0,
+        isLoading: false,
+      });
+    });
+    player.on('waiting', () => updatePlayerState({ isLoading: true }));
+    player.on('canplay', () => updatePlayerState({ isLoading: false }));
+    player.on('progress', () => {
+      if (player.buffered().length > 0) {
+        const bufferedEnd = player.buffered().end(player.buffered().length - 1);
+        const duration = player.duration();
+        
+        if (duration !== undefined && duration > 0) {
+          updatePlayerState({
+            bufferProgress: (bufferedEnd / duration) * 100,
+          });
+        }
+      }
+    });
+
+    // Add subtitle track if provided
+    if (subtitles) {
+      player.addRemoteTextTrack({
+        kind: 'subtitles',
+        src: subtitles,
+        srclang: 'en',
+        label: 'English',
+        default: true
+      }, false);
+    }
+
+    // Clean up on unmount
+    return () => {
+      if (playerRef.current) {
+        playerRef.current.dispose();
+      }
+    };
+  }, [videoSource, subtitles]);
 
   useEffect(() => {
     const videoElement = videoRef.current;
@@ -144,38 +226,40 @@ useEffect(() => {
 
 
   useEffect(() => {
-  const resetTimer = () => {
-    updatePlayerState({ showControls: true });
-    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    const resetTimer = () => {
+      updatePlayerState({ showControls: true });
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
 
-    controlsTimeoutRef.current = setTimeout(() => {
-      updatePlayerState({ showControls: false });
-    }, 3000);
-  };
+      controlsTimeoutRef.current = setTimeout(() => {
+        updatePlayerState({ showControls: false });
+      }, 3000);
+    };
 
-  const handleInteraction = () => {
+    const handleInteraction = () => {
+      resetTimer();
+    };
+
     resetTimer();
-  };
 
-  resetTimer();
-
-  const playerElement = playerRef.current;
-  if (playerElement) {
-    playerElement.addEventListener("mousemove", handleInteraction);
-    playerElement.addEventListener("click", handleInteraction);
-  }
-
-  document.addEventListener("keydown", handleInteraction);
-
-  return () => {
-    if (playerElement) {
-      playerElement.removeEventListener("mousemove", handleInteraction);
-      playerElement.removeEventListener("click", handleInteraction);
+    const player = playerRef.current;
+    if (player) {
+      // Use Video.js event handling instead of DOM events
+      player.on("mousemove", handleInteraction);
+      player.on("click", handleInteraction);
     }
-    document.removeEventListener("keydown", handleInteraction);
-    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-  };
-}, [updatePlayerState]);
+
+    document.addEventListener("keydown", handleInteraction);
+
+    return () => {
+      if (player) {
+        // Properly clean up Video.js events
+        player.off("mousemove", handleInteraction);
+        player.off("click", handleInteraction);
+      }
+      document.removeEventListener("keydown", handleInteraction);
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    };
+  }, [updatePlayerState]);
 
 
   useEffect(() => {
@@ -275,13 +359,11 @@ useEffect(() => {
 
   // Player controls
   const togglePlay = () => {
-    if (videoRef.current) {
+    if (playerRef.current) {
       if (playerState.isPlaying) {
-        videoRef.current.pause();
+        playerRef.current.pause();
       } else {
-        videoRef.current
-          .play()
-          .catch((error) => console.error("Play failed:", error));
+        playerRef.current.play();
       }
       updatePlayerState({ isPlaying: !playerState.isPlaying });
     }
@@ -382,7 +464,7 @@ useEffect(() => {
     if (!playerElement) return;
 
     if (!document.fullscreenElement) {
-      playerElement.requestFullscreen().catch((err) => {
+      playerElement.requestFullscreen().catch((err: any) => {
         console.error(
           `Error attempting to enable full-screen mode: ${err.message} (${err.name})`
         );
@@ -451,7 +533,6 @@ useEffect(() => {
                   width={500}
                   height={325}
                   className="w-full h-auto animate-pulse-opacity"
-                  unoptimized
                   priority
                 />
               </div>
@@ -465,47 +546,36 @@ useEffect(() => {
           </div>
         )}
 
-        <video
-          ref={videoRef}
-          src={videoSource}
-          className={videoClasses}
-          autoPlay
-          crossOrigin="anonymous"
-          onClick={(e) => {
-            if (
-              settingsMenuRef.current &&
-              settingsMenuRef.current.contains(e.target as Node)
-            ) {
-              return;
-            }
+        <div data-vjs-player>
+          <video
+            ref={videoRef}
+            className={videoClasses + " video-js vjs-big-play-centered"}
+            crossOrigin="anonymous"
+            onClick={(e) => {
+              if (
+                settingsMenuRef.current &&
+                settingsMenuRef.current.contains(e.target as Node)
+              ) {
+                return;
+              }
 
-            const settingsButton = document.getElementById(
-              "video-settings-button"
-            );
-            if (settingsButton && settingsButton.contains(e.target as Node)) {
-              return;
-            }
+              const settingsButton = document.getElementById(
+                "video-settings-button"
+              );
+              if (settingsButton && settingsButton.contains(e.target as Node)) {
+                return;
+              }
 
-            if (showSettingsMenu) {
-              setShowSettingsMenu(false);
+              if (showSettingsMenu) {
+                setShowSettingsMenu(false);
 
-              return;
-            }
-            togglePlay();
-          }}
-          onDoubleClick={toggleFullscreen}
-        >
-          {subtitles && (
-            <track
-              kind="subtitles"
-              src={subtitles}
-              srcLang="en"
-              label="English"
-              default
-            />
-          )}
-          Your browser does not support the video tag.
-        </video>
+                return;
+              }
+              togglePlay();
+            }}
+            onDoubleClick={toggleFullscreen}
+          />
+        </div>
 
         {showSettingsMenu && (
           <motion.div

@@ -6,6 +6,8 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { NEXT_PUBLIC_SITE_NAME } from "@/config";
 
+import ProtectedRoute from "@/components/ProtectedRoute";
+
 interface SortOptionProps {
   active: boolean;
   onClick: () => void;
@@ -235,6 +237,7 @@ export default function BrowsePage() {
   } | ${NEXT_PUBLIC_SITE_NAME}`;
 
   return (
+    <ProtectedRoute>
     <div className="font-mont text-white min-h-screen bg-background ">
       <Head>
         <title>{pageTitle}</title>
@@ -345,5 +348,6 @@ export default function BrowsePage() {
         )}
       </main>
     </div>
+    </ProtectedRoute>
   );
 }

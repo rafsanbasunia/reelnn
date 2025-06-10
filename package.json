@@ -9,13 +9,16 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@types/video.js": "^7.3.58",
+    "@videojs/themes": "^1.0.1",
     "jose": "^6.0.11",
     "lodash": "^4.17.21",
     "motion": "^12.5.0",
     "next": "15.2.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-icons": "^5.5.0"
+    "react-icons": "^5.5.0",
+    "video.js": "^8.23.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
