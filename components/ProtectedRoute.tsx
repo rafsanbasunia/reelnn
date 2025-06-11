@@ -1,7 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/router";
-import { useEffect } from "react";
-import { ENABLE_AUTH_PROTECTION } from "@/config";
+import { useEffect, useState } from "react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,15 +9,29 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    if (ENABLE_AUTH_PROTECTION && !isLoading && !isAuthenticated) {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    
+
+    
+    if (!isLoading && !isAuthenticated && isMounted) {
+      console.log("Redirecting to login...");
       router.push("/login");
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, router, isMounted]);
 
-  if (!ENABLE_AUTH_PROTECTION) {
-    return <>{children}</>;
+
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
+      </div>
+    );
   }
 
   if (isLoading) {
@@ -29,8 +42,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
+  
   if (!isAuthenticated) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
+      </div>
+    );
   }
 
   return <>{children}</>;

@@ -17,7 +17,7 @@ export const NEXT_PUBLIC_INSTAGRAM_CONTACT =
 
 export const SITE_SECRET = process.env.SITE_SECRET || "your_secret_key";
 
-export const ENABLE_AUTH_PROTECTION = process.env.ENABLE_AUTH_PROTECTION === 'true' || false;
+export const ENABLE_AUTH_PROTECTION = process.env.ENABLE_AUTH_PROTECTION === 'true';
 
 export const LOGIN_PAGE_POSTER = process.env.NEXT_PUBLIC_LOGIN_PAGE_POSTER || "";
 

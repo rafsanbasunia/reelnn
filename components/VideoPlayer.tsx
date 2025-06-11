@@ -710,9 +710,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 {playerState.errorMessage}
               </p>
               <div className="space-y-2">
-                <div className="text-xs text-gray-400">
-                  Supported formats: MP4, WebM, OGG
-                </div>
+                
                 <button
                   onClick={onClose}
                   className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors"

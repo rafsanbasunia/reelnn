@@ -6,7 +6,6 @@ import React, {
   ReactNode,
 } from "react";
 import { useRouter } from "next/router";
-import { ENABLE_AUTH_PROTECTION } from "@/config";
 
 interface User {
   id: string;
@@ -39,16 +38,38 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authProtectionEnabled, setAuthProtectionEnabled] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    if (!ENABLE_AUTH_PROTECTION) {
-      setIsLoading(false);
-      return;
-    }
-
-    checkAuthStatus();
+    checkAuthConfiguration();
   }, []);
+
+  const checkAuthConfiguration = async () => {
+    try {
+      
+      const response = await fetch("/api/auth/protection-status");
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      setAuthProtectionEnabled(data.authProtectionEnabled);
+
+      if (data.authProtectionEnabled) {
+        
+        await checkAuthStatus();
+      } else {
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error("Failed to check auth configuration:", error);
+      setAuthProtectionEnabled(false);
+      setIsLoading(false);
+    }
+  };
 
   const checkAuthStatus = async () => {
     try {
@@ -71,9 +92,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
+        
       } else {
         localStorage.removeItem("authToken");
         setUser(null);
+       
       }
     } catch (error) {
       console.error("Auth check error:", error);
@@ -100,10 +123,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem("authToken");
     router.push("/login");
   };
+
   const value = {
     user,
-    isLoading: isLoading,
-    isAuthenticated: ENABLE_AUTH_PROTECTION ? !!user : true,
+    isLoading,
+    isAuthenticated: authProtectionEnabled ? !!user : true,
     login,
     logout,
   };
