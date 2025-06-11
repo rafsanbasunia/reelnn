@@ -140,9 +140,8 @@ const Download: React.FC<DownloadProps> = ({
   };
   const handleVLCPlay = () => {
     if (directLink) {
-
-      const urlForVLC = directLink.replace(/^https?:\/\//i, '');
-      window.open(`vlc://${urlForVLC}`, '_self');
+      const intent = `intent:${directLink}#Intent;package=org.videolan.vlc;type=video/*;end`;
+      window.open(intent, '_self');
     }
   };
 
