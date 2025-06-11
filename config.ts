@@ -29,7 +29,6 @@ export const BACKEND_URL = process.env.BACKEND_URL || "http://0.0.0.0:6519";
 export const NEXT_PUBLIC_TELEGRAM_BOT_NAME =
   process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || "reelnnbot";
 export const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '12346578:CJNDSccosadckokco';
-export const TELEGRAM_BOT_USERNAME = NEXT_PUBLIC_TELEGRAM_BOT_NAME;
 
 // Shortener API
 export const SHORTENER_API_URL = process.env.SHORTENER_API_URL || '';
