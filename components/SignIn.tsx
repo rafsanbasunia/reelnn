@@ -9,7 +9,6 @@ import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import { NEXT_PUBLIC_TELEGRAM_BOT_NAME } from "@/config";
 
-// Add this interface
 interface TelegramAuthData {
   id: string;
   first_name: string;
@@ -20,7 +19,7 @@ interface TelegramAuthData {
   hash: string;
 }
 
-// Add this to extend the Window interface
+
 declare global {
   interface Window {
     onTelegramAuth?: (user: TelegramAuthData) => void;
@@ -95,7 +94,6 @@ const SignIn: React.FC<SignInProps> = ({ backgroundImageUrl }) => {
 
   useEffect(() => {
     const handleTelegramAuth = async (user: TelegramAuthData) => {
-      console.log("Telegram user data:", user);
 
       const isVerified = await verifyTelegramAuthViaAPI(user);
 
@@ -187,7 +185,7 @@ const SignIn: React.FC<SignInProps> = ({ backgroundImageUrl }) => {
 
   return (
     <div className=" font-mont min-h-screen flex items-center justify-center relative overflow-hidden">
-      <div className="fixed inset-0 z-0">
+      <div className="fixed h-screen inset-0 z-0">
         <img
           src={backgroundImageUrl || ""}
           alt="Background"

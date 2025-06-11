@@ -50,16 +50,14 @@ const Download: React.FC<DownloadProps> = ({
     isActive: isOpen  
   });
 
-  // Helper function to create proper stream URL with host
   const createStreamUrl = (url: string) => {
     if (!url) return '';
     
-    // If URL is already complete, return as is
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url;
     }
     
-    // Add host to relative URLs
+
     const host = typeof window !== 'undefined' ? window.location.origin : '';
     return url.startsWith('/') ? `${host}${url}` : `${host}/${url}`;
   };
@@ -97,14 +95,31 @@ const Download: React.FC<DownloadProps> = ({
       
       const data = await response.json();
       
-      // Update links from API response with proper host
+      let potentialDirectLink = data.directLink || streamUrl;
+
+      if (potentialDirectLink) {
+        if (potentialDirectLink.startsWith('http://https://')) {
+          potentialDirectLink = potentialDirectLink.substring('http://'.length);
+        } else if (potentialDirectLink.startsWith('https://http://')) {
+          potentialDirectLink = potentialDirectLink.substring('https://'.length);
+        }
+      }
+      
       setTelegramLink(data.telegramLink);
-      setDirectLink(createStreamUrl(data.directLink || streamUrl));
+      setDirectLink(createStreamUrl(potentialDirectLink));
     } catch (err) {
       console.error("Error getting download links:", err);
       setError("Couldn't generate download links");
-      // Fallback to use streamUrl directly
-      setDirectLink(createStreamUrl(streamUrl));
+      
+      let fallbackStreamUrl = streamUrl;
+      if (fallbackStreamUrl) {
+        if (fallbackStreamUrl.startsWith('http://https://')) {
+          fallbackStreamUrl = fallbackStreamUrl.substring('http://'.length);
+        } else if (fallbackStreamUrl.startsWith('https://http://')) {
+          fallbackStreamUrl = fallbackStreamUrl.substring('https://'.length);
+        }
+      }
+      setDirectLink(createStreamUrl(fallbackStreamUrl));
     } finally {
       setIsLoading(false);
     }
@@ -117,23 +132,22 @@ const Download: React.FC<DownloadProps> = ({
 
   if (!isOpen) return null;
 
-  // Direct download handler
+
   const handleDirectDownload = () => {
     if (directLink) {
       window.open(directLink, '_blank');
     }
   };
-
-  // External player handlers
   const handleVLCPlay = () => {
     if (directLink) {
-      window.open(`vlc://${directLink}`, '_self');
+
+      const urlForVLC = directLink.replace(/^https?:\/\//i, '');
+      window.open(`vlc://${urlForVLC}`, '_self');
     }
   };
 
   const handleMXPlayerPlay = () => {
     if (directLink) {
-      // MX Player intent for Android
       const intent = `intent:${directLink}#Intent;package=com.mxtech.videoplayer.ad;type=video/*;end`;
       window.open(intent, '_self');
     }
@@ -141,21 +155,18 @@ const Download: React.FC<DownloadProps> = ({
 
   const handlePotPlayerPlay = () => {
     if (directLink) {
-      // PotPlayer protocol
       window.open(`potplayer://${directLink}`, '_self');
     }
   };
 
   const handleGenericPlayerPlay = () => {
     if (directLink) {
-      // Copy URL to clipboard for manual pasting
       navigator.clipboard.writeText(directLink).then(() => {
         setCopyButtonState('copied');
-        setTimeout(() => setCopyButtonState('default'), 2000); // Reset after 2 seconds
+        setTimeout(() => setCopyButtonState('default'), 2000); 
       }).catch(() => {
         setCopyButtonState('error');
         setTimeout(() => setCopyButtonState('default'), 2000);
-        // Fallback: show URL in a prompt
         prompt('Copy this URL to your media player:', directLink);
       });
     }

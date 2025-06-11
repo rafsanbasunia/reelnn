@@ -16,10 +16,11 @@ interface SearchResult {
 interface SearchProps {
   isVisible: boolean;
   searchQuery: string;
+  className?: string;
 }
 
 const Search = forwardRef<HTMLDivElement, SearchProps>(
-  ({ isVisible, searchQuery }, ref) => {
+  ({ isVisible, searchQuery, className = '' }, ref) => {
     const [results, setResults] = useState<SearchResult[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -73,12 +74,12 @@ const Search = forwardRef<HTMLDivElement, SearchProps>(
       };
     }, [searchQuery, debouncedSearch, isVisible, lastSearchQuery]);
 
-    if (!isVisible) return null;
-
     return (
       <div
         ref={ref}
-        className="font-mont fixed top-16 sm:right-4 right-0 w-full sm:w-[320px] max-h-[60vh] sm:max-h-[70vh] overflow-y-auto bg-gray-900 rounded-b-lg shadow-lg z-40"
+        className={`${className} ${isVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'} 
+          bg-gray-900/95 backdrop-blur-md shadow-lg rounded-lg border border-gray-700
+          transition-opacity duration-200 ease-in-out`}
         data-testid="search-results-container"
       >
         {searchQuery.length < 3 ? (
