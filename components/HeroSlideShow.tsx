@@ -115,6 +115,7 @@ const HeroSlideshow = () => {
               style={{ objectFit: "cover", objectPosition: "center 20%" }}
               quality={100}
               priority
+              unoptimized
             />
           ) : (
             <div className="w-full h-full bg-gray-800 flex items-center justify-center">
@@ -148,6 +149,7 @@ const HeroSlideshow = () => {
                   height={208}
                   className="object-contain w-48 sm:w-64 md:w-80 lg:w-96 h-auto"
                   priority
+                  unoptimized
                 />
               ) : (
                 <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white">

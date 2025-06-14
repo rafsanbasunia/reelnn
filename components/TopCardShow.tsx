@@ -26,7 +26,8 @@ interface MovieDetailsProps {
   isFavorite?: boolean;
   isWatched?: boolean;
   runtime: number; 
-  vote?: number; 
+  vote?: number;
+  contentId?: number; 
 }
 
 // YouTube Trailer Modal Component
@@ -106,11 +107,42 @@ const TopCard: React.FC<MovieDetailsProps> = ({
   creators,
   isFavorite = false,
   isWatched = false,
-  vote
+  vote,
+  contentId
 }) => {
-  const [favorite, setFavorite] = useState(isFavorite);
-  const [watched, setWatched] = useState(isWatched);
+
+  const getStorageKey = (type: 'favorite' | 'watched') => `show_${type}_${contentId || title.replace(/\s+/g, '_')}`;
+  
+  const loadFromStorage = (type: 'favorite' | 'watched', defaultValue: boolean) => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(getStorageKey(type));
+      return stored ? JSON.parse(stored) : defaultValue;
+    }
+    return defaultValue;
+  };
+  
+  const saveToStorage = (type: 'favorite' | 'watched', value: boolean) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(getStorageKey(type), JSON.stringify(value));
+    }
+  };
+
+  const [favorite, setFavorite] = useState(() => loadFromStorage('favorite', isFavorite));
+  const [watched, setWatched] = useState(() => loadFromStorage('watched', isWatched));
   const [trailerOpen, setTrailerOpen] = useState(false);
+
+
+  const handleFavoriteToggle = () => {
+    const newFavorite = !favorite;
+    setFavorite(newFavorite);
+    saveToStorage('favorite', newFavorite);
+  };
+
+  const handleWatchedToggle = () => {
+    const newWatched = !watched;
+    setWatched(newWatched);
+    saveToStorage('watched', newWatched);
+  };
 
   const hasValidTrailer = useMemo(() => {
     try {
@@ -136,7 +168,8 @@ const TopCard: React.FC<MovieDetailsProps> = ({
             objectFit="cover"
             className="w-full h-full"
             priority 
-            sizes="(max-width: 768px) 300px, 320px" 
+            sizes="(max-width: 768px) 300px, 320px"
+            unoptimized
           />
         </div>
 
@@ -152,6 +185,7 @@ const TopCard: React.FC<MovieDetailsProps> = ({
                 height={120}
                 layout="intrinsic"
                 className="w-auto h-auto max-h-[80px] md:max-h-[120px]"
+                unoptimized
               />
             </div>
           )}
@@ -200,7 +234,7 @@ const TopCard: React.FC<MovieDetailsProps> = ({
             </div>
           </div>
 
-          {/* Action Buttons grid layout */}
+          {/* Action Buttons */}
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-4 mb-6 sm:mb-8">
             {hasValidTrailer && (
               <motion.button
@@ -220,7 +254,7 @@ const TopCard: React.FC<MovieDetailsProps> = ({
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full"
-                onClick={() => setWatched(!watched)}
+                onClick={handleWatchedToggle}
                 aria-label={watched ? "Mark as unwatched" : "Mark as watched"}
               >
                 {watched ? <FaCheck /> : <FaCheck className="text-gray-400" />}
@@ -230,20 +264,11 @@ const TopCard: React.FC<MovieDetailsProps> = ({
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full"
-                onClick={() => setFavorite(!favorite)}
+                onClick={handleFavoriteToggle}
                 aria-label={favorite ? "Remove from favorites" : "Add to favorites"}
               >
                 {favorite ? <FaHeart className="text-red-500" /> : <FaRegHeart />}
               </motion.button>
-
-              {/* <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full"
-                aria-label="More options"
-              >
-                <FaEllipsisH />
-              </motion.button> */}
             </div>
           </div>
 

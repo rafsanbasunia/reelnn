@@ -8,6 +8,7 @@ import Similar from "@/components/Similar";
 import VideoPlayer from "@/components/VideoPlayer";
 import { AnimatePresence } from "framer-motion";
 import { useStreamToken } from "@/hooks/useStreamToken";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import Image from "next/image";
 import Head from "next/head";
 import { NEXT_PUBLIC_SITE_NAME } from "@/config";
@@ -224,6 +225,7 @@ const Slug = () => {
   );
 
   return (
+    <ProtectedRoute>
     <div className="font-mont min-h-screen relative">
       <Head>
         <title>
@@ -250,6 +252,7 @@ const Slug = () => {
           objectFit="cover"
           quality={100}
           priority
+          unoptimized
         />
         <div className="absolute inset-0 bg-black/90"></div>
       </div>
@@ -354,6 +357,7 @@ const Slug = () => {
         )}
       </AnimatePresence>
     </div>
+  </ProtectedRoute>
   );
 };
 

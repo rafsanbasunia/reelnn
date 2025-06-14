@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AiOutlineHome } from "react-icons/ai";
+import { AiOutlineHome, AiOutlineUser } from "react-icons/ai";
 import { BsCollectionPlay, BsSearch } from "react-icons/bs";
 import { FiChevronDown, FiChevronUp, FiMenu, FiX } from "react-icons/fi";
 import { NEXT_PUBLIC_SITE_NAME } from "@/config";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from 'next/router';
 
 import Link from "next/link";
 import Search from "./Search";
@@ -29,15 +31,19 @@ export function useBreakpoint() {
 }
 
 export default function Navbar() {
+  const { user, logout } = useAuth();
+  const router = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [logoImageError, setLogoImageError] = useState(false); 
+  const [logoImageError, setLogoImageError] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
@@ -61,7 +67,10 @@ export default function Navbar() {
     setIsMobileMenuOpen(false);
   };
 
-  // Effect for preloading logo and handling error
+  const closeUserMenu = () => {
+    setIsUserMenuOpen(false);
+  };
+
   useEffect(() => {
     const img = new Image();
     img.src = "/logo.png";
@@ -80,7 +89,13 @@ export default function Navbar() {
         event.target as Node
       );
 
-
+      const userButtonElement = document.querySelector(
+        '[aria-label="User menu"], [aria-label="Login"]'
+      );
+      
+      const clickedUserButton = userButtonElement?.contains(
+        event.target as Node
+      );
       if (
         isSearchActive &&
         !clickedSearchButton &&
@@ -91,7 +106,14 @@ export default function Navbar() {
       ) {
         setIsSearchActive(false);
       }
-
+      if (
+        isUserMenuOpen &&
+        !clickedUserButton &&
+        userMenuRef.current &&
+        !userMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsUserMenuOpen(false);
+      }
 
       if (
         dropdownRef.current &&
@@ -108,12 +130,12 @@ export default function Navbar() {
       }
     }
 
-
     function handleEscKey(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setIsDropdownOpen(false);
         setIsMobileMenuOpen(false);
         setIsSearchActive(false);
+        setIsUserMenuOpen(false); 
       }
     }
 
@@ -124,9 +146,9 @@ export default function Navbar() {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEscKey);
     };
-  }, [isSearchActive]); 
+  }, [isSearchActive, isUserMenuOpen]); 
 
-  // Reusable animation variants
+
   const iconHoverAnimation = { scale: 1.1 };
   const iconTapAnimation = { scale: 0.9 };
   const navItemHoverAnimation = { y: -2 };
@@ -265,7 +287,7 @@ export default function Navbar() {
                   className="absolute right-0 flex items-center"
                   initial={{ width: 0, opacity: 0 }}
                   animate={{ 
-                    width: breakpoint === 0 ? "150px" : breakpoint === 1 ? "200px" : "320px", 
+                    width: breakpoint === 0 ? "150px" : breakpoint === 1 ? "200px" : "392px", 
                     opacity: 1 
                   }}
                   exit={{ width: 0, opacity: 0 }}
@@ -285,7 +307,100 @@ export default function Navbar() {
             </AnimatePresence>
           </div>
           
-          
+          {/* User Avatar - Improved UI */}
+          <div className="relative" ref={userMenuRef}>
+            <motion.button
+              className="p-1 hover:bg-gray-800/30 rounded-full transition-colors flex items-center justify-center"
+              whileHover={iconHoverAnimation}
+              whileTap={iconTapAnimation}
+              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              aria-label={user ? "User menu" : "Login"}
+            >
+              {user && user.photoUrl ? (
+                <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-500 shadow-md">
+                  <img
+                    src={user.photoUrl}
+                    alt={`${user.firstName}'s avatar`}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                      (e.target as HTMLElement).parentElement?.classList.add('bg-gray-700');
+                      (e.target as HTMLElement).parentElement?.setAttribute('data-icon', 'user');
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gray-700/80 flex items-center justify-center shadow-md border border-gray-600">
+                  <AiOutlineUser size={16} />
+                </div>
+              )}
+            </motion.button>
+
+            {/* User Menu Dropdown */}
+            <AnimatePresence>
+              {isUserMenuOpen && (
+                <motion.div
+                  className="absolute right-0 mt-2 w-64 bg-gray-900/95 backdrop-blur-sm rounded-lg shadow-xl py-2 z-10 border border-gray-700"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  role="menu"
+                >
+                  {user ? (
+                    <>
+                      <div className="px-4 py-3 border-b border-gray-800/80">
+                        <div className="flex items-center gap-3 mb-2">
+                          {user.photoUrl ? (
+                            <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-600">
+                              <img
+                                src={user.photoUrl}
+                                alt={`${user.firstName}'s avatar`}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
+                              <AiOutlineUser size={18} />
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-medium text-white">{user.firstName} {user.lastName}</div>
+                            <div className="text-xs text-gray-400">{user.username ? `@${user.username}` : ''}</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="px-4 py-2">
+                        <button
+                          onClick={() => { 
+                            logout();
+                            closeUserMenu();
+                          }}
+                          className="w-full flex items-center justify-center gap-2 bg-red-500/80 hover:bg-red-600 text-white text-sm font-medium py-2 px-4 rounded-md transition-colors"
+                          role="menuitem"
+                        >
+                          <span>Logout</span>
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="px-4 py-2">
+                      <button
+                        className="w-full flex items-center justify-center gap-2 bg-blue-500/90 hover:bg-blue-600 text-white text-sm font-medium py-2 px-4 rounded-md transition-colors"
+                        role="menuitem"
+                        onClick={() => {
+                          closeUserMenu();
+                          router.push('/login'); 
+                        }}
+                      >
+                        <AiOutlineUser size={16} />
+                        <span>Sign In</span>
+                      </button>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
         {/* Mobile Menu Panel  */}
@@ -360,11 +475,13 @@ export default function Navbar() {
       </nav>
 
       {/* Search Results Component */}
-      <Search
-        isVisible={isSearchActive}
-        searchQuery={searchQuery}
-        ref={searchContainerRef}
-      />
+      <div className="fixed top-16 right-0 md:right-4 z-50 w-full md:max-w-md">
+        <Search
+          isVisible={isSearchActive}
+          searchQuery={searchQuery}
+          ref={searchContainerRef}
+        />
+      </div>
     </>
   );
 }

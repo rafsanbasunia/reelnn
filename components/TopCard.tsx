@@ -128,12 +128,42 @@ const TopCard: React.FC<MovieDetailsProps> = ({
   onPlayClick,
   quality = [],
 }) => {
-  const [favorite, setFavorite] = React.useState(isFavorite);
-  const [watched, setWatched] = React.useState(isWatched);
+  const getStorageKey = (type: 'favorite' | 'watched') => `${type}_${contentId}`;
+
+
+  const loadFromStorage = (type: 'favorite' | 'watched', defaultValue: boolean) => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(getStorageKey(type));
+      return stored ? JSON.parse(stored) : defaultValue;
+    }
+    return defaultValue;
+  };
+
+  const saveToStorage = (type: 'favorite' | 'watched', value: boolean) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(getStorageKey(type), JSON.stringify(value));
+    }
+  };
+
+  const [favorite, setFavorite] = React.useState(() => loadFromStorage('favorite', isFavorite));
+  const [watched, setWatched] = React.useState(() => loadFromStorage('watched', isWatched));
   const [trailerOpen, setTrailerOpen] = React.useState(false);
   const [showQualityOptions, setShowQualityOptions] = React.useState(false);
   const [selectedQuality, setSelectedQuality] = React.useState(0);
   const [showDownload, setShowDownload] = React.useState(false);
+
+
+  const handleFavoriteToggle = () => {
+    const newFavorite = !favorite;
+    setFavorite(newFavorite);
+    saveToStorage('favorite', newFavorite);
+  };
+
+  const handleWatchedToggle = () => {
+    const newWatched = !watched;
+    setWatched(newWatched);
+    saveToStorage('watched', newWatched);
+  };
 
   const handlePlayClick = () => {
     if (onPlayClick) {
@@ -195,6 +225,7 @@ const TopCard: React.FC<MovieDetailsProps> = ({
             className="w-full h-full"
             priority={true}
             sizes="(max-width: 768px) 100vw, 300px"
+            unoptimized
           />
         </div>
 
@@ -209,6 +240,7 @@ const TopCard: React.FC<MovieDetailsProps> = ({
                 height={120}
                 layout="intrinsic"
                 className="w-auto h-auto max-h-[80px] md:max-h-[120px]"
+                unoptimized
               />
             </div>
           ) : (
@@ -343,12 +375,12 @@ const TopCard: React.FC<MovieDetailsProps> = ({
           </div>
 
           {/* Action Buttons grid layout */}
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-4 mb-6 sm:mb-8">
+          <div className="flex flex-wrap gap-2 mb-6">
             <motion.button
               whileHover={{ scale: 1.05 }}
               onClick={handlePlayClick}
               whileTap={{ scale: 0.95 }}
-              className="bg-gray-700 hover:bg-gray-600 text-white px-4 sm:px-6 py-2 rounded-md flex items-center justify-center"
+              className="bg-gray-700/80 backdrop-blur-md hover:bg-gray-600/80 text-white px-4 sm:px-6 py-2 rounded-md flex items-center justify-center transition-all duration-200"
             >
               <FaPlay className="mr-2" /> Play
             </motion.button>
@@ -357,18 +389,27 @@ const TopCard: React.FC<MovieDetailsProps> = ({
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleTrailerClick}
-              className="bg-gray-700 hover:bg-gray-600 text-white px-4 sm:px-6 py-2 rounded-md flex items-center justify-center"
+              className="bg-gray-700/80 backdrop-blur-md hover:bg-gray-600/80 text-white px-4 sm:px-6 py-2 rounded-md flex items-center justify-center transition-all duration-200"
             >
               <FaRegCalendarAlt className="mr-2" /> Trailer
             </motion.button>
 
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowDownload(true)}
+              className="bg-gray-700/80 backdrop-blur-md hover:bg-gray-600/80 text-white px-4 sm:px-6 py-2 rounded-md flex items-center justify-center transition-all duration-200"
+            >
+              <FaDownload className="mr-2" /> Download
+            </motion.button>
+
             {/* Icon buttons */}
-            <div className="col-span-2 flex justify-center sm:justify-start space-x-3 mt-2 sm:mt-0">
+            <div className="col-span-3 flex justify-center sm:justify-start space-x-3 mt-2 sm:mt-0">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full"
-                onClick={() => setWatched(!watched)}
+                className="bg-gray-700/80 backdrop-blur-md hover:bg-gray-600/80 text-white p-2 rounded-full transition-all duration-200"
+                onClick={handleWatchedToggle}
               >
                 {watched ? <FaCheck /> : <FaCheck className="text-gray-400" />}
               </motion.button>
@@ -376,8 +417,8 @@ const TopCard: React.FC<MovieDetailsProps> = ({
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full"
-                onClick={() => setFavorite(!favorite)}
+                className="bg-gray-700/80 backdrop-blur-md hover:bg-gray-600/80 text-white p-2 rounded-full transition-all duration-200"
+                onClick={handleFavoriteToggle}
               >
                 {favorite ? (
                   <FaHeart className="text-red-500" />
@@ -385,25 +426,6 @@ const TopCard: React.FC<MovieDetailsProps> = ({
                   <FaRegHeart />
                 )}
               </motion.button>
-
-              {/* Download button */}
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full"
-                onClick={() => setShowDownload(true)}
-                title="Download"
-              >
-                <FaDownload />
-              </motion.button>
-
-              {/* <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full"
-              >
-                <FaEllipsisH />
-              </motion.button> */}
             </div>
           </div>
 
