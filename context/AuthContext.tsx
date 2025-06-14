@@ -7,23 +7,27 @@ import React, {
 } from "react";
 import { useRouter } from "next/router";
 
+interface BackendUser {
+  user_id: number;
+  registration_date: string;
+  is_active: boolean;
+}
+
 interface User {
   id: string;
-  firstName: string;
+  firstName?: string;
   lastName?: string;
   username?: string;
   photoUrl?: string;
-  authDate: string;
-  backendUser: {
-    user_id: number;
-    registration_date: string;
-    is_active: boolean;
-  };
+  authDate?: string;
+  guest?: boolean;
+  backendUser?: BackendUser | null;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (userData: User, backendUserData?: any) => void;
+  login: (userData: User, backendUserData?: BackendUser | null) => void;
+  loginAsGuest: () => void;
   logout: () => void;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -47,19 +51,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkAuthConfiguration = async () => {
     try {
-      
       const response = await fetch("/api/auth/protection-status");
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       setAuthProtectionEnabled(data.authProtectionEnabled);
 
       if (data.authProtectionEnabled) {
-        
         await checkAuthStatus();
       } else {
         setIsLoading(false);
@@ -92,11 +94,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
-        
       } else {
         localStorage.removeItem("authToken");
         setUser(null);
-       
       }
     } catch (error) {
       console.error("Auth check error:", error);
@@ -107,35 +107,51 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const login = (userData: User, backendUserData?: any) => {
-    const userWithBackend = {
+  const login = (userData: User, backendUserData?: BackendUser | null) => {
+    const userWithBackend: User = {
       ...userData,
-      backendUser: backendUserData,
+      backendUser: backendUserData || null,
+      guest: false,
     };
     setUser(userWithBackend);
     localStorage.setItem("user", JSON.stringify(userWithBackend));
+    router.push("/");
+  };
 
+  const loginAsGuest = () => {
+    // Guest user minimal info, no backendUser, no token saved
+    const guestUser: User = {
+      id: "guest",
+      guest: true,
+      firstName: "Guest User",
+      backendUser: null,
+    };
+    setUser(guestUser);
+    localStorage.removeItem("authToken");
+    localStorage.setItem("user", JSON.stringify(guestUser));
     router.push("/");
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem("authToken");
+    localStorage.removeItem("user");
     router.push("/login");
   };
 
-  const value = {
+  const value: AuthContextType = {
     user,
     isLoading,
     isAuthenticated: authProtectionEnabled ? !!user : true,
     login,
+    loginAsGuest,
     logout,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");

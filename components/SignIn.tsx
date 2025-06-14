@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   FaTelegram,
   FaExclamationTriangle,
-  FaUser,
   FaUserPlus,
-} from "react-icons/fa";
+  FaDoorOpen,
+} from "react-icons/fa"; // Removed FaUser since unused
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import { NEXT_PUBLIC_TELEGRAM_BOT_NAME } from "@/config";
@@ -19,7 +19,6 @@ interface TelegramAuthData {
   hash: string;
 }
 
-
 declare global {
   interface Window {
     onTelegramAuth?: (user: TelegramAuthData) => void;
@@ -31,7 +30,7 @@ interface SignInProps {
 }
 
 const SignIn: React.FC<SignInProps> = ({ backgroundImageUrl }) => {
-  const { login } = useAuth();
+  const { login, loginAsGuest } = useAuth();
   const telegramWidgetRef = useRef<HTMLDivElement>(null);
   const [widgetLoaded, setWidgetLoaded] = useState(false);
   const [widgetError, setWidgetError] = useState(false);
@@ -42,59 +41,62 @@ const SignIn: React.FC<SignInProps> = ({ backgroundImageUrl }) => {
     "disabled" | "notFound" | "general"
   >("general");
 
-  const verifyTelegramAuthViaAPI = async (authData: TelegramAuthData): Promise<boolean> => {
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(authData),
-      });
+  // Memoize verifyTelegramAuthViaAPI so it's stable for useEffect deps
+  const verifyTelegramAuthViaAPI = useCallback(
+    async (authData: TelegramAuthData): Promise<boolean> => {
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(authData),
+        });
 
-      const result = await response.json();
+        const result = await response.json();
 
-      if (response.ok && result.verified) {
-        localStorage.setItem("authToken", result.token);
+        if (response.ok && result.verified) {
+          localStorage.setItem("authToken", result.token);
 
-        login(result.user, result.backendUser);
+          login(result.user, result.backendUser);
 
-        return true;
-      } else {
-        if (result.accountDisabled) {
-          setErrorType("disabled");
-          setErrorMessage(
-            "Your account has been disabled. Please contact support for assistance."
-          );
-        } else if (result.userNotFound) {
-          setErrorType("notFound");
-          setErrorMessage(
-            "User not found in our database. Please contact support to register your account."
-          );
+          return true;
         } else {
-          setErrorType("general");
-          setErrorMessage(
-            result.error || "Authentication failed. Please try again."
-          );
-        }
+          if (result.accountDisabled) {
+            setErrorType("disabled");
+            setErrorMessage(
+              "Your account has been disabled. Please contact support for assistance."
+            );
+          } else if (result.userNotFound) {
+            setErrorType("notFound");
+            setErrorMessage(
+              "User not found in our database. Please contact support to register your account."
+            );
+          } else {
+            setErrorType("general");
+            setErrorMessage(
+              result.error || "Authentication failed. Please try again."
+            );
+          }
 
+          setShowErrorModal(true);
+          return false;
+        }
+      } catch (error) {
+        console.error("Authentication error:", error);
+        setErrorType("general");
+        setErrorMessage(
+          "Network error occurred. Please check your connection and try again."
+        );
         setShowErrorModal(true);
         return false;
       }
-    } catch (error) {
-      console.error("Authentication error:", error);
-      setErrorType("general");
-      setErrorMessage(
-        "Network error occurred. Please check your connection and try again."
-      );
-      setShowErrorModal(true);
-      return false;
-    }
-  };
+    },
+    [login]
+  );
 
   useEffect(() => {
     const handleTelegramAuth = async (user: TelegramAuthData) => {
-
       const isVerified = await verifyTelegramAuthViaAPI(user);
 
       if (!isVerified) {
@@ -107,7 +109,7 @@ const SignIn: React.FC<SignInProps> = ({ backgroundImageUrl }) => {
     return () => {
       delete window.onTelegramAuth;
     };
-  }, [login]);
+  }, [verifyTelegramAuthViaAPI]);
 
   const createTelegramWidget = () => {
     setIsLoading(true);
@@ -152,13 +154,16 @@ const SignIn: React.FC<SignInProps> = ({ backgroundImageUrl }) => {
   useEffect(() => {
     createTelegramWidget();
 
+    // Save current ref value to avoid stale ref warning
+    const currentRef = telegramWidgetRef.current;
     return () => {
-      if (telegramWidgetRef.current) {
-        telegramWidgetRef.current.innerHTML = "";
+      if (currentRef) {
+        currentRef.innerHTML = "";
       }
     };
   }, []);
 
+  // Error Modal JSX
   const ErrorModal = () => (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
       <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 max-w-md mx-4 text-center">
@@ -176,6 +181,7 @@ const SignIn: React.FC<SignInProps> = ({ backgroundImageUrl }) => {
         <button
           onClick={() => setShowErrorModal(false)}
           className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+          type="button"
         >
           Close
         </button>
@@ -183,24 +189,28 @@ const SignIn: React.FC<SignInProps> = ({ backgroundImageUrl }) => {
     </div>
   );
 
+  const handleContinueAsGuest = () => {
+    loginAsGuest();
+  };
+
   return (
-    <div className=" font-mont min-h-screen flex items-center justify-center relative overflow-hidden">
+    <div className="font-mont min-h-screen flex items-center justify-center relative overflow-hidden">
       <div className="fixed h-screen inset-0 z-0">
-        <img
-          src={backgroundImageUrl || ""}
-          alt="Background"
-          className="w-full h-full object-cover"
-        />
+        {backgroundImageUrl && (
+          <img
+            src={backgroundImageUrl}
+            alt="Background"
+            className="w-full h-full object-cover"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-transparent to-black/90"></div>
       </div>
 
       <div className="relative z-10 bg-gray-900/70 backdrop-blur-md rounded-lg p-8 w-full max-w-md mx-4 border border-gray-700/80">
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-white mb-2">
-            Log in or Sign up
-          </h2>
+          <h2 className="text-2xl font-bold text-white mb-2">Log in or Sign up</h2>
           <p className="text-gray-300 text-sm">
-            Use your telegram account to log in or sign up.
+            Use your Telegram account to log in or sign up, or continue as a guest.
           </p>
         </div>
 
@@ -217,6 +227,7 @@ const SignIn: React.FC<SignInProps> = ({ backgroundImageUrl }) => {
               <button
                 onClick={createTelegramWidget}
                 className="w-full flex items-center justify-center gap-3 bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                type="button"
               >
                 <FaTelegram size={18} />
                 Continue with Telegram
@@ -225,11 +236,11 @@ const SignIn: React.FC<SignInProps> = ({ backgroundImageUrl }) => {
 
             <div
               ref={telegramWidgetRef}
-              className={`flex justify-center ${
-                isLoading ? "hidden" : "block"
-              }`}
-              style={{ minHeight: widgetLoaded && !isLoading ? "36px" : "0" }}
-            ></div>
+              className={`flex justify-center ${isLoading ? "hidden" : "block"}`}
+              style={{
+                minHeight: widgetLoaded && !isLoading ? "36px" : "0",
+              }}
+            />
           </div>
         </div>
 
@@ -239,22 +250,27 @@ const SignIn: React.FC<SignInProps> = ({ backgroundImageUrl }) => {
 
         <div className="space-y-3">
           <button
-            disabled
-            className="flex items-center justify-center gap-2 bg-transparent text-white text-sm font-medium py-2 px-4 rounded-lg cursor-not-allowed mx-auto"
+            onClick={handleContinueAsGuest}
+            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-lg mx-auto transition-colors"
+            type="button"
           >
-            <FaUser size={16} />
-            Continue as Guest (Coming Soon)
+            <FaDoorOpen size={16} />
+            Continue as Guest
           </button>
 
           <Link
             href={`https://t.me/${NEXT_PUBLIC_TELEGRAM_BOT_NAME}?start=signup`}
-            target="_blank"
-            rel="noopener noreferrer"
+            passHref
           >
-            <button className="flex items-center justify-center gap-2 bg-blue-400 border hover:bg-blue-500 border-gray-600 text-white hover:border-gray-500 hover:text-white text-sm font-medium py-2 px-12 rounded-lg transition-colors mx-auto">
-              <FaUserPlus size={16} />
-              Sign up with Telegram
-            </button>
+            <a target="_blank" rel="noopener noreferrer">
+              <button
+                className="flex items-center justify-center gap-2 bg-blue-400 border hover:bg-blue-500 border-gray-600 text-white hover:border-gray-500 hover:text-white text-sm font-medium py-2 px-12 rounded-lg transition-colors mx-auto"
+                type="button"
+              >
+                <FaUserPlus size={16} />
+                Sign up with Telegram
+              </button>
+            </a>
           </Link>
         </div>
       </div>

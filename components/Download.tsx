@@ -4,6 +4,7 @@ import { FaTelegram, FaDownload, FaPlay, FaChevronDown } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 import { SiVlcmediaplayer } from "react-icons/si";
 import { useStreamToken } from "@/hooks/useStreamToken";
+import { useAuth } from "@/context/AuthContext";
 
 interface DownloadProps {
   isOpen: boolean;
@@ -34,6 +35,11 @@ const Download: React.FC<DownloadProps> = ({
   seasonNumber, 
   episodeNumber 
 }) => {
+  const { user } = useAuth();
+
+  // Prevent guests from downloading
+  const isGuest = user?.guest === true;
+
   const [telegramLink, setTelegramLink] = useState<string>("");
   const [directLink, setDirectLink] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
@@ -57,81 +63,78 @@ const Download: React.FC<DownloadProps> = ({
       return url;
     }
     
-
     const host = typeof window !== 'undefined' ? window.location.origin : '';
     return url.startsWith('/') ? `${host}${url}` : `${host}/${url}`;
   };
 
   useEffect(() => {
-  const getDownloadLinks = async () => {
-    if (!streamUrl) return;
-    
-    setIsLoading(true);
-    setError("");
-    
-    try {
+    const getDownloadLinks = async () => {
+      if (!streamUrl) return;
       
-      const response = await fetch('/api/download', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          streamUrl: streamUrl, 
-          title,
-          quality: selectedQuality?.type || "Unknown",
-          size: selectedQuality?.size || "Unknown",
-          contentId,
-          mediaType: episodeNumber ? 'show' : 'movie',
-          qualityIndex,
-          seasonNumber,
-          episodeNumber
-        }),
-      });
+      setIsLoading(true);
+      setError("");
       
-      if (!response.ok) {
-        throw new Error('Failed to generate download links');
-      }
-      
-      const data = await response.json();
-      
-      let potentialDirectLink = data.directLink || streamUrl;
+      try {
+        const response = await fetch('/api/download', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            streamUrl: streamUrl, 
+            title,
+            quality: selectedQuality?.type || "Unknown",
+            size: selectedQuality?.size || "Unknown",
+            contentId,
+            mediaType: episodeNumber ? 'show' : 'movie',
+            qualityIndex,
+            seasonNumber,
+            episodeNumber
+          }),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to generate download links');
+        }
+        
+        const data = await response.json();
+        
+        let potentialDirectLink = data.directLink || streamUrl;
 
-      if (potentialDirectLink) {
-        if (potentialDirectLink.startsWith('http://https://')) {
-          potentialDirectLink = potentialDirectLink.substring('http://'.length);
-        } else if (potentialDirectLink.startsWith('https://http://')) {
-          potentialDirectLink = potentialDirectLink.substring('https://'.length);
+        if (potentialDirectLink) {
+          if (potentialDirectLink.startsWith('http://https://')) {
+            potentialDirectLink = potentialDirectLink.substring('http://'.length);
+          } else if (potentialDirectLink.startsWith('https://http://')) {
+            potentialDirectLink = potentialDirectLink.substring('https://'.length);
+          }
         }
-      }
-      
-      setTelegramLink(data.telegramLink);
-      setDirectLink(createStreamUrl(potentialDirectLink));
-    } catch (err) {
-      console.error("Error getting download links:", err);
-      setError("Couldn't generate download links");
-      
-      let fallbackStreamUrl = streamUrl;
-      if (fallbackStreamUrl) {
-        if (fallbackStreamUrl.startsWith('http://https://')) {
-          fallbackStreamUrl = fallbackStreamUrl.substring('http://'.length);
-        } else if (fallbackStreamUrl.startsWith('https://http://')) {
-          fallbackStreamUrl = fallbackStreamUrl.substring('https://'.length);
+        
+        setTelegramLink(data.telegramLink);
+        setDirectLink(createStreamUrl(potentialDirectLink));
+      } catch (err) {
+        console.error("Error getting download links:", err);
+        setError("Couldn't generate download links");
+        
+        let fallbackStreamUrl = streamUrl;
+        if (fallbackStreamUrl) {
+          if (fallbackStreamUrl.startsWith('http://https://')) {
+            fallbackStreamUrl = fallbackStreamUrl.substring('http://'.length);
+          } else if (fallbackStreamUrl.startsWith('https://http://')) {
+            fallbackStreamUrl = fallbackStreamUrl.substring('https://'.length);
+          }
         }
+        setDirectLink(createStreamUrl(fallbackStreamUrl));
+      } finally {
+        setIsLoading(false);
       }
-      setDirectLink(createStreamUrl(fallbackStreamUrl));
-    } finally {
-      setIsLoading(false);
+    };
+    
+    if (isOpen && streamUrl && !isGuest) {
+      getDownloadLinks();
     }
-  };
-  
-  if (isOpen && streamUrl) {
-    getDownloadLinks();
-  }
-}, [isOpen, streamUrl, title, selectedQuality, contentId, episodeNumber, qualityIndex, seasonNumber]);
+  }, [isOpen, streamUrl, title, selectedQuality, contentId, episodeNumber, qualityIndex, seasonNumber, isGuest]);
 
   if (!isOpen) return null;
-
 
   const handleDirectDownload = () => {
     if (directLink) {
@@ -200,6 +203,7 @@ const Download: React.FC<DownloadProps> = ({
           <button 
             onClick={onClose}
             className="text-gray-400 hover:text-white transition-colors"
+            type="button"
           >
             <IoClose size={24} />
           </button>
@@ -209,8 +213,12 @@ const Download: React.FC<DownloadProps> = ({
           <div className="text-sm text-gray-300 mb-2">
             Selected quality: <span className="font-semibold">{qualityDisplay}</span>
           </div>
-          
-          {showLoader ? (
+
+          {isGuest ? (
+            <div className="text-yellow-400 text-center font-medium p-6 bg-gray-800 rounded-lg border border-yellow-600">
+              Guests cannot download files. Please sign in to access download options.
+            </div>
+          ) : showLoader ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
             </div>
@@ -235,6 +243,7 @@ const Download: React.FC<DownloadProps> = ({
                 <button
                   onClick={handleDirectDownload}
                   className="flex items-center justify-center gap-3 bg-gray-700 hover:bg-gray-600 text-white py-3 px-4 rounded-lg w-full transition-colors"
+                  type="button"
                 >
                   <FaDownload size={20} />
                   <span>Direct Download</span>
@@ -253,6 +262,7 @@ const Download: React.FC<DownloadProps> = ({
                     active:scale-[0.98] transform
                     sm:py-2.5 sm:px-3
                   `}
+                  type="button"
                 >
                   <div className="flex items-center gap-3">
                     <FaPlay size={16} className="text-blue-400" />
@@ -286,6 +296,7 @@ const Download: React.FC<DownloadProps> = ({
                     <button
                       onClick={handleVLCPlay}
                       className="flex items-center justify-center gap-3 bg-orange-600 hover:bg-orange-700 text-white py-2.5 px-4 rounded-lg w-full transition-all duration-200 active:scale-[0.98] transform"
+                      type="button"
                     >
                       <SiVlcmediaplayer size={18} />
                       <span className="text-sm sm:text-base">Open in VLC</span>
@@ -295,6 +306,7 @@ const Download: React.FC<DownloadProps> = ({
                     <button
                       onClick={handleMXPlayerPlay}
                       className="flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white py-2.5 px-4 rounded-lg w-full transition-all duration-200 active:scale-[0.98] transform"
+                      type="button"
                     >
                       <FaPlay size={16} />
                       <span className="text-sm sm:text-base">Open in MX Player</span>
@@ -304,6 +316,7 @@ const Download: React.FC<DownloadProps> = ({
                     <button
                       onClick={handlePotPlayerPlay}
                       className="flex items-center justify-center gap-3 bg-yellow-500 hover:bg-yellow-600 text-white py-2.5 px-4 rounded-lg w-full transition-all duration-200 active:scale-[0.98] transform"
+                      type="button"
                     >
                       <FaPlay size={16} />
                       <span className="text-sm sm:text-base">Open in PotPlayer</span>
@@ -321,6 +334,7 @@ const Download: React.FC<DownloadProps> = ({
                           : 'bg-gray-600 hover:bg-gray-500'
                         } text-white
                       `}
+                      type="button"
                     >
                       <FaPlay size={16} />
                       <span className="text-sm sm:text-base">
@@ -337,7 +351,7 @@ const Download: React.FC<DownloadProps> = ({
               </div>
             </>
           )}
-          
+
           <p className="text-xs text-gray-400 text-center mt-4">
             Note: External players require the respective apps to be installed on your device.
           </p>
